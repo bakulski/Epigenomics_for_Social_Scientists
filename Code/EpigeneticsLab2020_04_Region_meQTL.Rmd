@@ -1,9 +1,11 @@
 ---
-title: "Johns Hopkins Summer Institute: Epigenomics in Public Health Lab 2020"
+title: "Epigenomics for Social Scientists 2021"
 subtitle: "04 Region Finding, Global, DNAm age, and meQTL Association Analysis"
-author: "Kelly Bakulski, David Sosnowski, Shan Andrews, Brion Maher"
-date: "May 29, 2020"
+author: "Kelly Bakulski, John Dou, Shan Andrews"
+date: "Last compiled on `r format(Sys.Date(), '%B %d, %Y')`"
 output: html_document
+    toc: true
+    toc_float: true
 ---
 
 
