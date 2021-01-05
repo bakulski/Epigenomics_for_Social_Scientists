@@ -1,17 +1,23 @@
 ---
-title: "Johns Hopkins Summer Institute: Epigenomics in Public Health Lab 2020"
+title: "Epigenomics for Social Scientists"
 subtitle: "01 Installing and loading packages, reading in datasets"
-author: "Kelly Bakulski, David Sosnowski, Shan Andrews, Brion Maher"
-date: "May 29, 2020"
-output: html_document
+author: "Kelly Bakulski, Shan Andrews, John Dou, Jonah Fisher, Erin Ware"
+date: "January 2021"
+output: 
+  html_document:
+  toc: true
+  toc_float: true
+  theme: sandstone
+  highlight: tango
 ---
 
-# Setting up R markdown format
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, eval = T)
 ```
 
-# Installing relevant packages(only do once per computer)
+# Install and load packages
+
+## 
 
 ```{r install packages, include=FALSE, eval=FALSE}
 #We have these packages already downloaded on the cloud hence eval=FALSE. 
@@ -57,7 +63,7 @@ library(IlluminaHumanMethylation450kmanifest)
 library(IlluminaHumanMethylation450kanno.ilmn12.hg19)
 library(sva)
 library(Hmisc)
-library(missmethyl)
+library(missMethyl)
 library(ggplot2)
 ```
 
@@ -71,15 +77,15 @@ library(ggplot2)
 #As you work on your own computer, you will need to specify the folder locations.
 
 # Folder location of the data files
-#data_dir <- "/cloud/project/"
-data_dir <- "~/Documents/GitHub/Application-and-Analysis-of-Epigenetic-Data-in-Public-Health-Research/data/" #Kelly's personal computer directory
+data_dir <- "/cloud/project/"
 data_dir
+
 # Folder location to put the output files
-#output_dir <- "/cloud/project/output/"
-output_dir <- "~/Documents/GitHub/Application-and-Analysis-of-Epigenetic-Data-in-Public-Health-Research/output/" #Kelly's personal computer directory
+output_dir <- "/cloud/project/output/"
 output_dir
+
 # Record the current date for record keeping and appending to output file names
-date<-format(Sys.Date(), "%Y%m%d") 
+date <- format(Sys.Date(), "%Y%m%d") 
 date
 ```
 
