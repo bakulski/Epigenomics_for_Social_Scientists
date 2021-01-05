@@ -148,7 +148,51 @@ dev.off()
 
 # Global DNAm analyses
 ```{r global DNAm analyses}
-# TO DO INSERT HERE
+
+# simple way of getting a global level by taking mean across probes
+# also can restrict by genomic regions by relation to CpG islands
+
+# function restrict to specific genomic region in relation to cpg islands
+genomic.region <- function(X, region, anno='450k'){
+  #X = anything with cpgs as rownames
+  #region = what area you want
+  #anno = 450k or epic
+  
+  if(anno=='450k' | anno=='450K'){
+    library(IlluminaHumanMethylation450kanno.ilmn12.hg19)
+  }else if(anno=='epic' | anno=='EPIC'){
+    library(IlluminaHumanMethylationEPICanno.ilm10b2.hg19)
+  }else{
+    stop('450k or EPIC only.')
+  }
+  
+  #pick out CpGs in X that are in region
+  data(Islands.UCSC)
+  if(region=='Shore' | region=='Shelf'){
+    #if only 'Shore' or 'Shelf' are given, north and south are combined
+    Islands.UCSC <- Islands.UCSC[rownames(X),]
+    Islands.UCSC <- Islands.UCSC[Islands.UCSC$Relation_to_Island==paste('N_',region,sep='') | Islands.UCSC$Relation_to_Island==paste('S_',region,sep=''),]
+  }else{
+    Islands.UCSC <- Islands.UCSC[rownames(X),]
+    Islands.UCSC <- Islands.UCSC[Islands.UCSC$Relation_to_Island==region,]
+  }
+  
+  #return X limited to genomic region specified
+  return(X[rownames(Islands.UCSC),])
+}
+
+#compute each person's means
+pd.complete$meanDNAm <- colMeans(combat.beta) * 100
+
+#compute means by region
+pd.complete$meanDNAm.sea <- colMeans(genomic.region(combat.beta,'OpenSea')) * 100
+pd.complete$meanDNAm.shore <- colMeans(genomic.region(combat.beta,'Shore')) * 100
+pd.complete$meanDNAm.shelf <- colMeans(genomic.region(combat.beta,'Shelf')) * 100
+pd.complete$meanDNAm.island <- colMeans(genomic.region(combat.beta,'Island')) * 100
+
+#now you have a mean across probes for each person, use in regression or other analysis, ex:
+fit.adj <- lm(pd.complete$meanDNAm ~ factor( pd.complete$casestatus ) + pd.complete$age + factor( pd.complete$gender ) + factor( pd.complete$smoking ) + pd.complete$cellscores$x[ ,1 ])
+
 ```
 
 
