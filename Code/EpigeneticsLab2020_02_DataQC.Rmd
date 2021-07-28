@@ -32,6 +32,9 @@ library(ggplot2)
 library(ggsci)
 library(tidyverse)
 library(here)
+library(ewastools)
+library(wateRmelon)
+library(GGally)
 ```
 
 # Minfi preprocessing
@@ -152,8 +155,6 @@ rm(Meth, Unmeth) # Clean up our coding environment
 ## Create raw methyl dataset
 
 ```{r create meth set}
-library(ewastools)
-
 meth <- read_idats(here("Data", "idats", pd$Basename)) %>% detectionP()
 ```
 
@@ -417,7 +418,6 @@ ggplot(pcvar, aes(x = pcs, y = var)) +
 ```
 
 ```{r pcplot}
-library(GGally)
 #Here we can define another function to use to look at principle component plots by different attributes.
 pcplot <- function(pheno){
   ggpairs(data.frame(betapcs$x)[, 1:6], aes(color = factor(unlist(pd[pheno]))))

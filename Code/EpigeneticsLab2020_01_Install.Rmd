@@ -42,6 +42,9 @@ BiocManager::install(c(
   "GEOquery",
   "wateRmelon" #For quality control
 ))
+
+devtools::install_github("hhhh5/ewastools")
+
 # Install standard R packages that we want to use.
 
 install.packages(c(
