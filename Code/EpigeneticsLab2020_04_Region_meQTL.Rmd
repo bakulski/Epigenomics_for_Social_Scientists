@@ -1,248 +1,315 @@
 ---
-title: "Epigenomics for Social Scientists 2021"
+title: "Epigenomics for Social Scientists"
 subtitle: "04 Region Finding, Global, DNAm age, and meQTL Association Analysis"
-author: "Kelly Bakulski, John Dou, Shan Andrews"
+author: "Kelly Bakulski, Shan Andrews, John Dou, Jonah Fisher, Erin Ware"
 date: "Last compiled on `r format(Sys.Date(), '%B %d, %Y')`"
-output: html_document
-    toc: true
-    toc_float: true
+output: 
+  html_document:
+  toc: true
+  toc_float: true
+  theme: sandstone
+  highlight: tango
 ---
 
-
-# Setting up R markdown format
 ```{r setup, include=FALSE, eval=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning = F)
 ```
 
-# Installing relevant packages (only do once per computer)
-```{r install packages, include=FALSE, eval=FALSE}
-#If you're running code on your personal computer, set eval=TRUE.
-#Since we're running code on the Cloud, these packages have already been installed and it is not necessary to re-install. 
+# Setup
 
-### Install BiocManager -- Allows user to install Bioconductor packages
-if ( !requireNamespace( "BiocManager" ) ) install.packages( "BiocManager" )
-
-### Install minfi -- 450k analysis package
-BiocManager::install( "bumphunter" ) 
-BiocManager::install( "minfi" )
-
-### Install RColorBrewer -- Useful package that provides color palettes to help visualize data
-install.packages( "RColorBrewer" )
-
-### Install limma -- Functions for single-site association analysis
-BiocManager::install( "limma" )
-
-### Install ggplot2 -- Easy plotting functions
-install.packages( "ggplot2" )
-
-### Install matrixEQTL --	For fast eQTL and meQTL analyses
-install.packages( "MatrixEQTL" )
-```
-
-```{r load packages}
+## Load required packages
+```{r load packages, message = F}
 #Load the matrixEQTL package
-library( MatrixEQTL )
+library(MatrixEQTL)
 library(ggplot2)
 library(minfi)
 library(limma)
 ```
 
-
-# Set up color palettes for plotting 
-```{r color palettes}
-#Set up color palettes for plotting
-myColors <- c( "dodgerblue", "firebrick1", "seagreen3" )
-graphColors = c( "#023FA5","#7D87B9","#BEC1D4","#D6BCC0","#BB7784", "#D33F6A", "#11C638","#8DD593","#C6DEC7","#EAD3C6",
-                "#F0B98D","#EF9708", "#0FCFC0","#9CDED6","#D5EAE7","#F3E1EB","#F6C4E1","#F79CD4", "#4A6FE3","#8595E1",
-                "#B5BBE3","#E6AFB9","#E07B91" )
-```
-
-# Setting file paths for data, output, scripts
-```{r source data/output}
-# Setting file paths for data, output, scripts
-
-#The rest of this script assumes that your data are in a folder called "project" on the Cloud.
-#It also assumes that your ouptut will be stored in a subfolder called "output" on the Cloud. 
-#As you work on your own computer, you will need to specify the folder locations.
-
-# Folder location of the data files
-data_dir <- "/cloud/project/data/"
-data_dir
-# Folder location to put the output files
-output_dir <- "/cloud/project/output/"
-output_dir
-# Record the current date for record keeping and appending to output file names
-date<-format(Sys.Date(), "%Y%m%d") 
-date
-```
-
 # Read in the data
+
 ```{r load data}
 # Need noob, combat.beta, pd.complete, mapped files
-load( paste0(data_dir, "noob.rda"))
+load(paste0(data_dir, "noob.rda"))
 load(paste0(data_dir,"combat-beta.rda"))
 load(paste0(data_dir, "pd-complete.rda"))
-load(paste0(data_dir, "mapped-noob.rda")
+load(paste0(data_dir, "mapped-noob.rda"))
 
 #Make sure these output to TRUE
-identical( colnames( combat.beta ), colnames( noob ) )
-identical( rownames( pd.complete ), colnames( noob ) )
-identical( rownames( noob ), rownames( combat.beta ) )
+identical(colnames(combat.beta), colnames(noob))
+identical(rownames(pd.complete), colnames(noob))
+identical(rownames(noob), rownames(combat.beta))
 
-chrnames <- as.character( seqnames( mapped ) )
-pos <- as.numeric( start( mapped ) )
+pre.beta <- getBeta(noob)
+chrnames <- as.character(seqnames(mapped))
+pos <- as.numeric(start(mapped))
 ```
 
 # Construct regression model
+
 ```{r construct regression model}
 #Construct the model matrix
-mod <- model.matrix( ~ factor( pd.complete$casestatus ) + pd.complete$age + factor( pd.complete$gender ) + factor( pd.complete$smoking ) + pd.complete$cellscores$x[ ,1 ] )  
+mod <- model.matrix(~ factor(pd.complete$casestatus) + pd.complete$age + factor(pd.complete$gender) + factor(pd.complete$smoking) + pd.complete$PC1)  
 ```
 
-
 # Region finding
+
 ```{r region finding analysis}
-mybumps <- bumphunter( combat.beta, mod, chr = chrnames, pos = pos,
+mybumps <- bumphunter(combat.beta, mod, chr = chrnames, pos = pos,
 	pickCutoff = TRUE, pickCutoffQ = 0.975, maxGap = 300, smooth = TRUE,
-	smoothFunction = loessByCluster, B = 10, nullMethod = "bootstrap" )
+	smoothFunction = loessByCluster, B = 10, nullMethod = "bootstrap")
 
 #Annotate the bumphunter output with gene information
 mybumps <- mybumps$table
+
+#Create gene annotation type file to look for gene by position range
+library("TxDb.Hsapiens.UCSC.hg19.knownGene")
+genes <- annotateTranscripts(TxDb.Hsapiens.UCSC.hg19.knownGene)
+mygenes <- matchGenes(mybumps[1,], genes) #Using only the first row for purpose of avoiding long comp time
 ```
 
 # Plot differentially methylated regions
+
 ```{r plot differentially methylated regions}
 
 #Plot the top 2 DMRs: here we are formatting the data in a certain way in order to fit
 #the ggplot2 plotting function. We have also shifted the position of the controls by 10bp
 #so that their methylation distribution is easier to see. 
-pdf( paste0(output_dir, "DMRexample.pdf") )  ##############################
-for ( i in 1:2 ){
+for (i in 1:2){
 #for (i in 1:1){
-	indexstart <- mybumps$indexStart[ i ]
-	indexend <- mybumps$indexEnd[ i ]
-	grabBeta <- pre.beta[ indexstart:indexend, ]
+	indexstart <- mybumps$indexStart[i ]
+	indexend <- mybumps$indexEnd[i ]
+	grabBeta <- pre.beta[indexstart:indexend, ]
 	formbeta <- c()
-	for ( j in 1:nrow( grabBeta ) ){
-		tempbeta <- grabBeta[ j, ]
-		formbeta <- c( formbeta, tempbeta )
+	for (j in 1:nrow(grabBeta)){
+		tempbeta <- grabBeta[j, ]
+		formbeta <- c(formbeta, tempbeta)
 	}
-	reppos <- rep( pos[ indexstart:indexend ], each = ncol( pre.beta ) )
+	reppos <- rep(pos[indexstart:indexend ], each = ncol(pre.beta))
 	#reppos.real<-pos[reppos]
-	xmin <- min( reppos ) - 100
-	xmax <- max( reppos ) + 100
-	status <- rep( pd$casestatus, nrow( grabBeta ) )
-	reppos.real.shift <- ifelse( status == "Control", reppos + 10, reppos )
-	toplot <- data.frame( ( formbeta ), reppos.real.shift, status )
-	rownames( toplot )<-c( )
-	colnames( toplot )<-c("Beta","Position","Status")
+	xmin <- min(reppos) - 100
+	xmax <- max(reppos) + 100
+	status <- rep(pd.complete$casestatus, nrow(grabBeta))
+	reppos.real.shift <- ifelse(status == "Control", reppos + 10, reppos)
+	toplot <- data.frame((formbeta), reppos.real.shift, status)
+	rownames(toplot)<-c()
+	colnames(toplot)<-c("Beta","Position","Status")
 	#toplot$Status<-ifelse(toplot$Status==2,"normal","autism")
-	p2 <- ggplot( data= toplot, aes( x = ( Position ),y = ( Beta ),color = factor( Status ) ) ) + geom_point( size = 0.75 ) + scale_colour_manual(values = c( "dodgerblue","black" ) ) +
-	theme( legend.direction = "horizontal", legend.position = c( 0.5,0.95 ), legend.title = element_blank( ), panel.background = element_blank( ) ) +
-	ylab( "Percent Methylation" ) + xlab( "Position" ) +
-	scale_x_continuous( limits = c( xmin, xmax ) ) + stat_smooth( method = "loess", se = FALSE ) +
-		scale_y_continuous( limits = c( 0,1 ), breaks = seq( 0, 1, by = 0.25 ), labels = c( "0","25","50","75","100" ) )
+	p2 <- ggplot(data= toplot, aes(x = (Position),y = (Beta),color = factor(Status))) + geom_point(size = 0.75) + scale_colour_manual(values = c("dodgerblue","black")) +
+	theme(legend.direction = "horizontal", legend.position = c(0.75,0.95), legend.title = element_blank(), panel.background = element_blank()) +
+	ylab("Percent Methylation") + xlab("Position") +
+	scale_x_continuous(limits = c(xmin, xmax)) + stat_smooth(method = "loess", se = FALSE) +
+		scale_y_continuous(limits = c(0,1), breaks = seq(0, 1, by = 0.25), labels = c("0","25","50","75","100"))
 		#+stat_summary(fun.y=mean,geom="line",size=1)
-	print( p2 )
+	print(p2)
 }
-dev.off()
+
 ```
 
 # Global DNAm analyses
-```{r global DNAm analyses}
-# TO DO INSERT HERE
-```
 
+```{r global DNAm analyses}
+
+# simple way of getting a global level by taking mean across probes
+# also can restrict by genomic regions by relation to CpG islands
+
+# function restrict to specific genomic region in relation to cpg islands
+genomic.region <- function(X, region, anno='450k'){
+  #X = anything with cpgs as rownames
+  #region = what area you want
+  #anno = 450k or epic
+  
+  if(anno=='450k' | anno=='450K'){
+    library(IlluminaHumanMethylation450kanno.ilmn12.hg19)
+  }else if(anno=='epic' | anno=='EPIC'){
+    library(IlluminaHumanMethylationEPICanno.ilm10b2.hg19)
+  }else{
+    stop('450k or EPIC only.')
+  }
+  
+  #pick out CpGs in X that are in region
+  data(Islands.UCSC)
+  if(region=='Shore' | region=='Shelf'){
+    #if only 'Shore' or 'Shelf' are given, north and south are combined
+    Islands.UCSC <- Islands.UCSC[rownames(X),]
+    Islands.UCSC <- Islands.UCSC[Islands.UCSC$Relation_to_Island==paste('N_',region,sep='') | Islands.UCSC$Relation_to_Island==paste('S_',region,sep=''),]
+  }else{
+    Islands.UCSC <- Islands.UCSC[rownames(X),]
+    Islands.UCSC <- Islands.UCSC[Islands.UCSC$Relation_to_Island==region,]
+  }
+  
+  #return X limited to genomic region specified
+  return(X[rownames(Islands.UCSC),])
+}
+
+#compute each person's means
+pd.complete$meanDNAm <- colMeans(combat.beta) * 100
+
+#compute means by region
+pd.complete$meanDNAm.sea <- colMeans(genomic.region(combat.beta,'OpenSea')) * 100
+pd.complete$meanDNAm.shore <- colMeans(genomic.region(combat.beta,'Shore')) * 100
+pd.complete$meanDNAm.shelf <- colMeans(genomic.region(combat.beta,'Shelf')) * 100
+pd.complete$meanDNAm.island <- colMeans(genomic.region(combat.beta,'Island')) * 100
+
+#now you have a mean across probes for each person, use in regression or other analysis, ex:
+fit.adj <- lm(pd.complete$meanDNAm ~ factor(pd.complete$casestatus) + pd.complete$age + factor(pd.complete$gender) + factor(pd.complete$smoking) + pd.complete$PC1)
+
+summary(fit.adj)
+```
 
 # DNAm Age analyses
+
 ```{r DNAm age analyses}
-# TO DO INSERT HERE
+# There are many DNAm age clocks, and implementation will vary depending on sepcific clocks
+# here are examples using two clcoks
+
+
+
+### Horvath skin and blood clock (2018)
+
+# this clock involves predictions on a transformed age variabe
+# the agep() function in the wateRmelon package can take care of this in the background
+library(wateRmelon)
+
+# load coefficients from publication (PMID: 30048243)
+horvath <- read.csv(paste0(data_dir, "HorvathSkinBloodCoefs.csv"))
+horvath.coef <- horvath$Coef
+names(horvath.coef) <- horvath$ID
+
+horvath.age <- agep(combat.beta, coef=horvath.coef, method='horvath')
+pd.complete$horvath.age <- horvath.age
+head(horvath.age)
+
+
+
+### Levine clock (2018)
+
+# load coefficents from publication (PMID: 29676998)
+levine <- read.csv(paste0(data_dir,  "LevineCoefs.csv"), header=T)
+levine.coef <- levine$Weight
+names(levine.coef) <- levine$CpG
+
+cpg.intersect <- intersect(names(levine.coef)[-1], rownames(combat.beta))
+levine.coef <- levine.coef[c("Intercept", cpg.intersect)]
+
+# this clock does not use a transformed age variable, so we simply need to 
+# multiply coefficients by our methylation values
+
+# first set up DNAm matrix with intercept row
+betas.lev <- combat.beta[cpg.intersect,]
+betas.lev[1:5,1:5]
+
+# add a row for intercept
+Intercept <- rep(1,ncol(betas.lev))
+betas.lev <- rbind(Intercept, betas.lev)
+betas.lev[1:5,1:5]
+
+# multiply DNAm matrix by coefficients
+levine.age <- colSums(betas.lev * levine.coef)
+pd.complete$levine.age <- levine.age
+head(levine.age)
+
+
+### plot chronological age against DNAm clocks
+ggplot(pd.complete, aes(x=age, y=horvath.age, col=casestatus)) +
+  geom_point() +
+  geom_smooth(method='lm', se=F) +
+  geom_abline(slope=1) +
+  theme_bw() +
+  xlab('Chronological Age') +
+  ylab('Horvath Age') +
+  labs(col=("Case Status"))
+
+ggplot(pd.complete, aes(x=age, y=levine.age, col=casestatus)) +
+  geom_point() +
+  geom_smooth(method='lm', se=F) +
+  geom_abline(slope=1) +
+  theme_bw() +
+  xlab('Chronological Age') +
+  ylab('Levine Age') +
+  labs(col=("Case Status"))
+
 ```
-
-
 
 # meQTL analyses
 
 ```{r load genotype data}
 #Load the genotype object
-load( paste0(data_dir, "genotypes.rda" ))
-load( paste0(data_dir, "snp.pos.rda" ))
+load(paste0(data_dir, "genotypes.rda"))
+load(paste0(data_dir, "snp.pos.rda"))
 ```
 
 ```{r prepare genetic and methylation data}
 
 #Subset methylation data and genomic positions to only our 
 #chromosome of interest
-B.mychr <- combat.beta[ which( chrnames == "chr22" ), ]
-pos.mychr <- pos[ which( chrnames == "chr22" ) ]
+B.mychr <- combat.beta[which(chrnames == "chr22"), ]
+pos.mychr <- pos[which(chrnames == "chr22")]
 
 #Subset the methylation data to probes in this particular region
-B.LDblock <- B.mychr[ which( pos.mychr > 17583446 & pos.mychr < 17666446 ), ]   
-pos.LDblock <- pos.mychr[ which( pos.mychr > 17583446 & pos.mychr < 17666446 ) ]
+B.LDblock <- B.mychr[which(pos.mychr > 17583446 & pos.mychr < 17666446),] 
+pos.LDblock <- pos.mychr[which(pos.mychr > 17583446 & pos.mychr < 17666446)]
 
 #Let's be sure to match to the samples in our methylation matrix
-genotypes <- genotypes[, match (colnames( B.LDblock ), colnames( genotypes ) ) ]
+genotypes <- genotypes[, match (colnames(B.LDblock), colnames(genotypes))]
 
 #Format the genotypes and methylation objects for the package
-genotypes.format <- SlicedData$new( genotypes )
-meth.format <- SlicedData$new( B.LDblock )
+genotypes.format <- SlicedData$new(genotypes)
+meth.format <- SlicedData$new(B.LDblock)
 ```
 
 # Calculate meQTLs
+
 ```{r}
 #Call the function
-results <- Matrix_eQTL_main( genotypes.format, meth.format, pvOutputThreshold = 0.05,
-	snpspos = snp.pos,genepos = pos.LDblock, output_file_name = NULL, output_file_name.cis = NULL )
+results <- Matrix_eQTL_main(genotypes.format, meth.format, pvOutputThreshold = 0.05,
+	snpspos = snp.pos,genepos = pos.LDblock, output_file_name = NULL, output_file_name.cis = NULL)
 
 #Grab the meQTL results in a separate object for ease of plotting downstream
 results.table <- results$all$eqtls
 
 #Let's examine the spatial relationship between SNPs and CpG sites.
 #First we make sure we grab the right positions
-results.table$SNPpos <- snp.pos[ match( results.table$snps, rownames( genotypes ) ) ]
-results.table$CGpos <- pos.LDblock[ match( results.table$gene, rownames( B.LDblock ) ) ]
+results.table$SNPpos <- snp.pos[match(results.table$snps, rownames(genotypes))]
+results.table$CGpos <- pos.LDblock[match(results.table$gene, rownames(B.LDblock))]
 
 #Transform the p-value to the -log10 scale
-results.table$transP <- ( -1*log( results.table$pvalue, base = 10 ) )
+results.table$transP <- (-1*log(results.table$pvalue, base = 10))
 
 results.table$Distance <- results.table$CGpos - results.table$SNPpos
 
 ```
 
 # Plot meQTL
+
 ```{r plot meQTL}
-pdf( paste0(output_dir, "VolcanomeQTL.pdf" ))
-with( results.table, plot( Distance, transP, pch = 20, main = NULL, 
-	xlab = "CpG Position - SNP Position (Kb)", ylab = "-log10 p-value" ) )
-dev.off()
-	
+with(results.table, plot(Distance, transP, pch = 20, main = NULL, 
+	xlab = "CpG Position - SNP Position (Kb)", ylab = "-log10 p-value"))
 ```
-
-
 
 # ADDENDUM: READ DATA FROM GEO
 
 ```{r prepare for data download from GEO, eval=FALSE}
 #Use the 'GEOquery' package
-library( GEOquery )
+library(GEOquery)
 # set your data directory to where you want to download the files
-data_dir <- "/cloud/project/data/"
+data_dir <- "/cloud/project/Data/"
 data_dir
 ```
 
-
 # Download the data from GEO
+
 ```{r download the supplementary files from geo, eval=FALSE}
 
 #Download the supplementary files attached to this 
 #GEO ID. Raw .idat files are part of this group of
 #supplementary files. 
-getGEOSuppFiles( "GSE42861", makeDirectory = TRUE, baseDir = data_dir )
+getGEOSuppFiles("GSE42861", makeDirectory = TRUE, baseDir = data_dir)
 
 #General data available for this GEOID
-mystudy <- getGEO( GEO = "GSE42861", destdir = getwd( ) )
+mystudy <- getGEO(GEO = "GSE42861", destdir = getwd())
 
 #Phenotype/covariate information for these samples  
-mypheno <- ( phenoData( mystudy$GSE42861_series_matrix.txt.gz ) )
-variables <- varMetadata( mypheno )
+mypheno <- (phenoData(mystudy$GSE42861_series_matrix.txt.gz))
+variables <- varMetadata(mypheno)
 ```

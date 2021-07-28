@@ -1,12 +1,22 @@
 ---
 title: "Epigenomics for Social Scientists 2021"
-subtitle: "00 Introduction to R"
+subtitle: "00 Introduction to R and R Markdown"
 author: "Kelly Bakulski"
 date: "Last compiled on `r format(Sys.Date(), '%B %d, %Y')`"
 output: html_document
 ---
 
-## R Markdown
+# Software used
+
+## Programming language: R
+
+The programming language used here is R, which is a primarily used for statistical computing. More information can be found here <https://www.r-project.org/>.
+
+## IDE: Rstudio
+
+IDE (Integrated Development Environment) is fancy language for a piece of software that consolidates different elements of coding. We can see this in the 4 paneled window we are looking at.
+
+## Authoring Software: RMarkdown
 
 This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
 
@@ -17,7 +27,7 @@ When you click the **Knit** button a document will be generated that includes bo
 library(knitr)
 ```
 
-## Common new R users frustations
+## Common new R users frustrations
 
 1.  Different versions of software
     - RStudio Cloud solves this
@@ -32,6 +42,7 @@ library(knitr)
 ## Explaining commands/output
 
 An R command (we'll also call it code or a code chunk) will be grey and look like this
+
 ```{r code}
 print("I'm code")
 ```
@@ -45,6 +56,7 @@ So `print("I'm code")` is the code chunk and [1] "I'm code" is the output.
      +, -, /, * are add, subtract, divide and multiply
      ^ or ** is power
      parentheses -- ( and ) -- work with order of operations 
+     
 ```{r calcDemo}
 2 + 2
 2 * 4
@@ -76,11 +88,11 @@ Try evaluating the following:
 # Best practice is to take a ton of notes to help your future self and anyone who comes later to re-run your code
 ```
 
-
 ## R variables 
 * You can create variables from within the R environment and from files on your computer
 * R uses "<-"or "=" to assign values to a variable name
 * Variable names are case-sensitive, i.e. X and x are different
+
 ```{r assign}
 x <- 2 # Same as: x = 2
 x
@@ -94,6 +106,7 @@ x + 2
 `data.frame`s are somewhat advanced objects in R; we will start with simpler objects;
 * Here we introduce "1 dimensional" classes; often referred to as 'vectors'
 * Vectors can have multiple sets of observations, but each observation has to be the same class.
+
 ```{r vector_class}
 class(x)
 y <- "hello world!"
@@ -103,6 +116,7 @@ class(y)
 
 ## R variable practice
 Try assigning your full name to an R variable called `name`
+
 ```{r myName}
 name <- "Kelly Bakulski"
 name
@@ -116,9 +130,9 @@ x
 class(x)
 ```
 
-
 ## The 'combine' function practice
 Try assigning your first and last name as 2 separate character strings into a length-2 vector called `name2`
+
 ```{r myName2}
 name2 <- c("Kelly","Bakulski")
 name2

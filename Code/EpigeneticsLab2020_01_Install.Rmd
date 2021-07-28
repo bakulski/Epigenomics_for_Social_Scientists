@@ -1,138 +1,131 @@
 ---
-title: "Epigenomics for Social Scientists 2021"
+title: "Epigenomics for Social Scientists"
 subtitle: "01 Installing and loading packages, reading in datasets"
-author: "Kelly Bakulski, John Dou, Shan Andrews"
+author: "Kelly Bakulski, Shan Andrews, John Dou, Jonah Fisher, Erin Ware"
 date: "Last compiled on `r format(Sys.Date(), '%B %d, %Y')`"
-output: html_document
-    toc: true
-    toc_float: true
+output: 
+  html_document:
+  toc: true
+  toc_float: true
+  number_sections: true
+  theme: sandstone
+  highlight: tango
 ---
 
-# Setting up R markdown format
-```{r setup, include=FALSE, eval=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = T, warning = F, message = F)
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 ```
 
-# Installing relevant packages (only do once per computer)
+# Setup
+
+## Install required packages (Do not run the following code chunk if on rstudio cloud account for EGESS)
+
+There are many useful packages for DNA methylation pre-processing and analysis. The following packages are largely downloaded from **Bioconductor** which holds myriad useful packages for bioinformatics; the remaining packages come from CRAN which is a standard repository for general R packages. Note that your rsudio cloud environment will already have these installed so there is no need to run the following (it will take a long time). We include this code in the document so you can have a resource for package installation in future analyses you may do.
+
 ```{r install packages, include=FALSE, eval=FALSE}
-#If you're running code on your personal computer, set eval=TRUE.
-#Since we're running code on the Cloud, these packages have already been installed and it is not necessary to re-install. 
+# We have these packages already downloaded on the cloud hence eval=FALSE.
+# If you're doing this on a personal computer you can set eval=TRUE to download there.
 
-### Install BiocManager -- Allows user to install Bioconductor packages
-if ( !requireNamespace( "BiocManager" ) ) install.packages( "BiocManager" )
+# Install BiocManager. This let's us install Bioconductor packages that we want to use.
+if (!requireNamespace("BiocManager")) install.packages("Bioconductor")
 
-### Install minfi -- 450k analysis package
-BiocManager::install( "bumphunter" ) 
-BiocManager::install( "minfi" )
+BiocManager::install(c(
+  "bumphunter", # Differentially methylated region analysis
+  "minfi", # Many functions for methylation analysis
+  "sva", # Batch effect correction
+  "limma", # Single-site association analysis
+  "IlluminaHumanMethylation450kmanifest", # Manifest file
+  "IlluminaHumanMethylation450kanno.ilmn12.hg19", # Annotation file
+  "GO.dv", # Gene ontology queries
+  # "missMethyl",
+  "GEOquery",
+  "wateRmelon" #For quality control
+))
+# Install standard R packages that we want to use.
 
-### Install RColorBrewer -- Useful package that provides color palettes to help visualize data
-install.packages( "RColorBrewer" )
-
-### Install sva -- Functions for batch effect correction
-BiocManager::install( "sva" )
-
-### Install limma -- Functions for single-site association analysis
-BiocManager::install( "limma" )
-
-### Install ggplot2 -- Easy plotting functions
-install.packages( "ggplot2" )
-
-### Install manifest/annotation for the array, will need to update if using EPIC 850k array
-BiocManager::install( c("IlluminaHumanMethylation450kmanifest", "IlluminaHumanMethylation450kanno.ilmn12.hg19"))
-
-### Install Go.db and topGo -- Functions for gene ontology queries
-BiocManager::install( c( "GO.db","topGO","missMethyl", "GEOquery" ) )
-
-### Install matrixEQTL --	For fast eQTL and meQTL analyses
-install.packages( "MatrixEQTL" )
-
-### Install qqman -- Functions for q-q and manhattan plots
-install.packages( "qqman" )
-
-### Install nlme -- Functions for non-linear mixed effects models
-install.packages( "nlme" )
-
-### Install BiasedUrn -- Functions for hypergenometric distributions
-install.packages( "BiasedUrn" )
+install.packages(c(
+  "ggsci", #Color palettes inspired by scientific publications and tvshows
+  "viridis", #Color palette helpful for colorblindness
+  "RColorBrewer", # Color palettes for data visualization,
+  "tidyverse", # Useful for ggplot plotting and 
+  "MatrixEQTL", # Fast eQTL and meQTL analyses
+  "qqman", # QQ and manhattan plots
+  "nlme", # Non-linear mixed effects models
+  "BiasedUrn", # Hypergeometric distributions
+  "here", #Automated datapath inferences
+  "GGally", # For plotting functions
+  "ggpubr" #Also plotting functions
+))
 ```
 
-# Load relevant packages (do this every time you do an analysis)
-```{r load packages}
-library( minfi )
-library( limma )
-library( matrixStats )
-library( MASS )
-library( abind )
-library (IlluminaHumanMethylation450kmanifest)
-library( IlluminaHumanMethylation450kanno.ilmn12.hg19)
-library( sva )
-library( Hmisc )
-library( mismethyl )
-library( ggplot2 )
-```
+## Load relevant packages
 
-# Setting file paths for data, output, scripts
-```{r source data/output}
-# Setting file paths for data, output, scripts
+This should be done whenever you start a new r session. For this script we only use functions from the package *minfi*. This package has essentially the largest set of functions of any on Bioconductor. 
 
-#The rest of this script assumes that your data are in a folder called "project" on the Cloud.
-#It also assumes that your ouptut will be stored in a subfolder called "output" on the Cloud. 
-#As you work on your own computer, you will need to specify the folder locations.
-
-# Folder location of the data files
-#data_dir <- "/cloud/project/"
-data_dir <- "~/Documents/GitHub/Application-and-Analysis-of-Epigenetic-Data-in-Public-Health-Research/data/" #Kelly's personal computer directory
-data_dir
-# Folder location to put the output files
-#output_dir <- "/cloud/project/output/"
-output_dir <- "~/Documents/GitHub/Application-and-Analysis-of-Epigenetic-Data-in-Public-Health-Research/output/" #Kelly's personal computer directory
-output_dir
-# Record the current date for record keeping and appending to output file names
-date<-format(Sys.Date(), "%Y%m%d") 
-date
+```{r load packages, message=F, warning=F}
+library(minfi)
+library(magrittr)
+library(knitr)
+library(here)
 ```
 
 # Read in the data
-```{r load data}
-pheno <- read.csv( paste0(data_dir, "samplesheet.csv"), header = TRUE, stringsAsFactors = FALSE )
-dim( pheno )
-head( pheno )
-RGset <- read.metharray.exp( file.path( paste0(data_dir, "/idats" )), targets = pheno, verbose = TRUE )
-dim( RGset )
-manifest <- getManifest( RGset )
-str( manifest )
-annotation <- getAnnotation( RGset )
-dim( annotation )
-annotation[ 1:2, ]
+
+Here we read in our phenotype data and our RGChannelSet. The RGset is a single large object that is an amalgamation of the .idat files where the data are organized and summarised in an accessible and convenient way.
+
+```{r load phenotype data and create rgset}
+pheno <- read.csv(here("Data","samplesheet.csv"))
+dim(pheno)
+head(pheno)
+
+RGset <- read.metharray.exp(here("Data", "idats"), targets = pheno, verbose = TRUE, extended = T)
+dim(RGset)
+
+manifest <- getManifest(RGset)
+str(manifest)
+
+annotation <- getAnnotation(RGset)
+dim(annotation)
+head(annotation)
 ```
 
 # Explore the dataset
-```{r explore dataset}
-typeof( annotation )
-typeof( RGset )
-getClass( RGset )
+
+```{r explore rgset, manifest, annotation, pd}
+class(annotation)
+class(RGset)
+getClass(RGset)
+
 manifest
-head( getProbeInfo( manifest ) )
-dim( getProbeInfo( manifest ) )
-table( getProbeInfo( manifest )$Color )
-pd <- pData( RGset )
-table( pd$casestatus )
-table( pd$gender )
-table( pd$casestatus, pd$gender )
-table( pd$Batch)
-table( pd$casestatus, pd$Batch )
-dim( pd )
-length( pd$GEOID )
-summary( pd$age )
-summary( pd$age[ pd$gender == "M" ] )
-summary( pd$age[ pd$gender == "F" ] )
-head( pd )
+head(getProbeInfo(manifest))
+dim(getProbeInfo(manifest))
+table(getProbeInfo(manifest)$Color)
+
+pd <- RGset@colData@listData 
+
+dim(pd)
+head(pd)
+
+table(pd$casestatus)
+table(pd$gender)
+table(pd$gender, pd$casestatus)
+table(pd$Batch)
+table(pd$Batch, pd$casestatus)
+
+summary(pd$age)
+summary(pd$age[pd$sex == "M"])
+summary(pd$age[pd$sex == "M"])
+
+head(pd)
 ```
 
 # Save RGset object
-```{r save RGset}
-# Next time, you won't need to go back to the IDAT files.
-# You can start with the RGset
 
-save(RGset, file=paste0(data_dir, "RGset.rda"))
+While in our 17 sample example for lab no process takes especially long, once you scale up the number of samples you will see larger and larger increases in computation time. Therefore, saving large intermediate data products such as the RGChannelSet is helpful.
+
+```{r save RGset}
+# Save RGChannelSet object 
+save(RGset, file = file.path("Data", "RGset.rda"))
 ```
+
