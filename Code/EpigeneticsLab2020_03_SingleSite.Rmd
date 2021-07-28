@@ -102,15 +102,23 @@ expected <- -log10(ppoints(length(ss.hits$P.Value)))
 lambda <- median(observed) / median(expected)
 
 # Make a qq plot of our data
-qq(ss.hits$P.Value)
+qq(ss.hits$P.Value, main = sprintf("Lambda value of %.3f", lambda))
 ```
+
 ## Make a manhattan plot of our data
+
+Manhattan plots place negative log10 transformed P values on the y axis. After the transformation, a higher value indicates greater significance. The X axis is ordered by chromosome number and position within the genome. 
+
+Manhattan plots are not quite as helpful with Epigenetics as they are with Genetics. This is partly due to how significant locations differ between DNA and DNAm. While genetic hits often cluster within GWAS, epigenetic hits from EWAS tend to not cluser together very much.
+
+Nonetheless, it may still be useful to take a look at one.
 
 ```{r prepare for manhattan plot}
 anno <- IlluminaHumanMethylation450kanno.ilmn12.hg19::Locations
 anno$chr <- str_split(anno$chr, "chr",n=2,simplify=T)[,2]
 anno <- anno[anno$chr %in% 1:22,]
 anno$chr <- as.numeric(anno$chr)
+
 forman <- merge(anno[c("chr", "pos")], ss.hits[c("P.Value")], by = "row.names")
 forman <- forman[complete.cases(forman),]
 forman$SNP <- ""
@@ -130,73 +138,26 @@ tophits <- ss.hits[1:6, ]
 plotop <- function(hit){
   dat <- data.frame(vals = combat.beta[hit,], case = pd$casestatus)
   mdiff <- mean(dat$vals[dat$case == "RA"]) - mean(dat$vals[dat$case == "Control"])
-  ggplot(dat, aes(x = case, y = vals, color = case)) +
-    geom_boxplot(outliers = F, fill = "grey", width = 0.5) +
+  p <- ggplot(dat, aes(x = case, y = vals, color = case)) +
+    geom_boxplot(outlier.size = -1, fill = "grey", width = 0.5) +
     geom_jitter(width = 0.1) +
     labs(x = "Case Status", y = "Beta Methylation Value", title = sprintf("Probe %s", hit),
          subtitle = sprintf("FDR P = %.3f. Mean Diff = %.3f", tophits$adj.P.Val[rownames(tophits) == hit], mdiff),
          color = "Case Status") +
     scale_color_nejm() +
     theme_bw()
+  
+  print(p)
 }
 
-
-for (k in 1:nrow(mytrunc)) {
-  probe <- which(rownames(pre.beta) == rownames(mytrunc)[k])
-  grabBeta <- pre.beta[probe, ]
-
-  formbeta <- c()
-  for (leonard in 1:length(grabBeta)) {
-    tempbeta <- grabBeta[leonard]
-    formbeta <- c(formbeta, tempbeta)
-  }
-  reppos <- rep(pos.ss[k], each = ncol(pre.beta))
-  # reppos.real<-pos[reppos]
-  xmin <- min(reppos) - 10
-  xmax <- max(reppos) + 20
-  status <- pd$casestatus
-  reppos.real.shift <- ifelse(status == "Control", reppos + 10, reppos)
-  toplot <- data.frame((as.numeric(formbeta)), jitter(reppos.real.shift), status)
-  rownames(toplot) <- c()
-  # toplot<-data.frame(toplot)
-  colnames(toplot) <- c("Beta", "Position", "Status")
-
-  casemean <- mean(as.numeric(grabBeta[which(status == "RA")]))
-  contmean <- mean(as.numeric(grabBeta[which(status == "Control")]))
-  casedat <- data.frame(x = (pos.ss[k] - 2):(pos.ss[k] + 2), y = mean(as.numeric(grabBeta[which(status == "RA")])), color = "red")
-  contdat <- data.frame(x = (pos.ss[k] + 8):(pos.ss[k] + 12), y = mean(as.numeric(grabBeta[which(status == "Control")])), color = "chartreuse")
-
-  mymeans[k, 1] <- mean(as.numeric(grabBeta[which(status == "RA")]))
-  mymeans[k, 2] <- mean(as.numeric(grabBeta[which(status == "Control")]))
-
-  meanDiff <- round((mean(as.numeric(grabBeta[which(status == "RA")])) - mean(as.numeric(grabBeta[which(status == "Control")]))) * 100, digits = 1)
-  pVal <- format(mytrunc$P.Value[k], digits = 3)
-
-  p2 <- ggplot(data = toplot, aes(x = (Position), y = (Beta), color = factor(Status))) +
-    geom_point(size = 2) +
-    scale_colour_manual(values = c("dodgerblue", "black")) +
-    theme(legend.direction = "vertical", legend.position = c(0.1, 0.95), legend.title = element_blank(), panel.background = element_blank()) +
-    ylab("Percent Methylation") +
-    xlab(paste0(rownames(mytrunc)[k], ":", " Delta M = ", meanDiff, " at p-val ", pVal)) +
-    scale_x_continuous(limits = c(xmin, xmax)) +
-    theme(axis.text.x = element_blank()) +
-    scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, by = 0.25), labels = c("0", "25", "50", "75", "100")) +
-    geom_line(data = casedat, aes(x = x, y = y), color = "red") +
-    geom_line(data = contdat, aes(x = x, y = y), color = "chartreuse")
-
-  #+stat_summary(fun.y=mean,geom="line",size=1)
-  print(p2)
-}
-
-
-rm(pos.ss, chr.ss, chr.ss.num, formanhattan, pre.beta)
+map(rownames(tophits), plotop)
 ```
 
 # Gene ontology analysis
 
 ```{r calculate gene ontology enrichment}
 # Need to pick a significance cutoff for inclusion. Here is 1x10-5, but may need to be flexible with data.
-# gene.ontology <- gometh( as.character( rownames( ss.hits )[ ss.hits$P.Value < 1e-5 ] ), all.cpg = as.character( rownames( ss.hits ) ), plot.bias = FALSE, prior.prob = TRUE )
+#gene.ontology <- missMethyl::gometh(as.character(rownames(ss.hits)[ss.hits$P.Value < 1e-5]), all.cpg = as.character(rownames(ss.hits)), plot.bias = FALSE, prior.prob = TRUE)
 
 # memory requirements of missMethyl package may be too much for RStudio cloud, load the premade gene.ontology object:
 
