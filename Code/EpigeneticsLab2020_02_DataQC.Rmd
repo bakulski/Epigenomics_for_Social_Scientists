@@ -66,7 +66,7 @@ Unmeth[1:5, 1:5]
 
 ```{r visualize raw intensities}
 # Overall intensity: M vs. U
-pd$MQC <- log2(colMedians(Meth)) # <- lets us assign a new column within pd; in r base this would be pd$MQC <- log2(colMedians(Meth))
+pd$MQC <- log2(colMedians(Meth)) 
 pd$UQC <- log2(colMedians(Unmeth))
 
 pd$Slide <- factor(pd$Slide) #If we don't change datatypes then R will think we want slide and batch as continuous integers rather than factors.
