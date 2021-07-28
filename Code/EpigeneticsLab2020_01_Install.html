@@ -351,7 +351,7 @@ pre code {
 <h1 class="title toc-ignore">Epigenomics for Social Scientists</h1>
 <h3 class="subtitle">01 Installing and loading packages, reading in datasets</h3>
 <h4 class="author">Kelly Bakulski, Shan Andrews, John Dou, Jonah Fisher, Erin Ware</h4>
-<h4 class="date">Last compiled on July 12, 2021</h4>
+<h4 class="date">Last compiled on July 23, 2021</h4>
 
 </div>
 
@@ -366,116 +366,137 @@ pre code {
 <h2>Load relevant packages</h2>
 <p>This should be done whenever you start a new r session. For this script we only use functions from the package <em>minfi</em>. This package has essentially the largest set of functions of any on Bioconductor.</p>
 <pre class="r"><code>library(minfi)
-library(data.table)
-library(magrittr)</code></pre>
-</div>
-<div id="setting-file-paths-for-data" class="section level2">
-<h2>Setting file paths for data</h2>
-<p>Here we just set up paths for loading of data</p>
-<pre class="r"><code># Setting file paths for data
-
-# The rest of this script assumes that your data are in a folder called &quot;project&quot; on the Cloud.
-# As you work on your own computer, you will need to specify the folder locations.
-
-# Folder location of the data files
-data_dir &lt;- &quot;E:/GESS/2060001/Data/&quot;# for rstudio cloud switch to: &quot;/cloud/project/Data/&quot;
-data_dir</code></pre>
-<pre><code>## [1] &quot;E:/GESS/2060001/Data/&quot;</code></pre>
+library(magrittr)
+library(knitr)
+library(here)</code></pre>
 </div>
 </div>
 <div id="read-in-the-data" class="section level1">
 <h1>Read in the data</h1>
 <p>Here we read in our phenotype data and our RGChannelSet. The RGset is a single large object that is an amalgamation of the .idat files where the data are organized and summarised in an accessible and convenient way.</p>
-<pre class="r"><code>pheno &lt;- data.table::fread(file.path(data_dir, &quot;samplesheet.csv&quot;)) #Base R used read.csv() to read in comma seperated value files
+<pre class="r"><code>pheno &lt;- read.csv(here(&quot;Data&quot;,&quot;samplesheet.csv&quot;))
 dim(pheno)</code></pre>
 <pre><code>## [1] 17 10</code></pre>
 <pre class="r"><code>head(pheno)</code></pre>
-<pre><code>##         GEOID celltype casestatus age gender    smoking  Array      Slide
-## 1: GSM1051870      PBL         RA  60      F      never R03C02 7766130158
-## 2: GSM1052024      PBL         RA  29      F      never R01C02 5730053010
-## 3: GSM1052035      PBL    Control  48      M occasional R04C02 5730053011
-## 4: GSM1051874      PBL    Control  51      F    current R02C01 7766130166
-## 5: GSM1051871      PBL         RA  57      F      never R05C02 7766130158
-## 6: GSM1051872      PBL         RA  64      F    current R06C02 7766130158
-##                        Basename Batch
-## 1: GSM1051870_7766130158_R03C02     2
-## 2: GSM1052024_5730053010_R01C02     1
-## 3: GSM1052035_5730053011_R04C02     1
-## 4: GSM1051874_7766130166_R02C01     2
-## 5: GSM1051871_7766130158_R05C02     2
-## 6: GSM1051872_7766130158_R06C02     2</code></pre>
-<pre class="r"><code>RGset &lt;- read.metharray.exp(file.path(data_dir, &quot;idats&quot;), targets = pheno, verbose = TRUE)
+<pre><code>##        GEOID celltype casestatus age gender    smoking  Array      Slide
+## 1 GSM1051870      PBL         RA  60      F      never R03C02 7766130158
+## 2 GSM1052024      PBL         RA  29      F      never R01C02 5730053010
+## 3 GSM1052035      PBL    Control  48      M occasional R04C02 5730053011
+## 4 GSM1051874      PBL    Control  51      F    current R02C01 7766130166
+## 5 GSM1051871      PBL         RA  57      F      never R05C02 7766130158
+## 6 GSM1051872      PBL         RA  64      F    current R06C02 7766130158
+##                       Basename Batch
+## 1 GSM1051870_7766130158_R03C02     2
+## 2 GSM1052024_5730053010_R01C02     1
+## 3 GSM1052035_5730053011_R04C02     1
+## 4 GSM1051874_7766130166_R02C01     2
+## 5 GSM1051871_7766130158_R05C02     2
+## 6 GSM1051872_7766130158_R06C02     2</code></pre>
+<pre class="r"><code>RGset &lt;- read.metharray.exp(here(&quot;Data&quot;, &quot;idats&quot;), targets = pheno, verbose = TRUE, extended = T)
 dim(RGset)</code></pre>
 <pre><code>## [1] 622399     17</code></pre>
 <pre class="r"><code>manifest &lt;- getManifest(RGset)
 str(manifest)</code></pre>
 <pre><code>## Formal class &#39;IlluminaMethylationManifest&#39; [package &quot;minfi&quot;] with 2 slots
-##   ..@ data      :&lt;environment: 0x000000004d6b0278&gt; 
+##   ..@ data      :&lt;environment: 0x0000000046bcbed8&gt; 
 ##   ..@ annotation: chr &quot;IlluminaHumanMethylation450k&quot;</code></pre>
 <pre class="r"><code>annotation &lt;- getAnnotation(RGset)
 dim(annotation)</code></pre>
 <pre><code>## [1] 485512     33</code></pre>
-<pre class="r"><code>annotation[1:2, ]</code></pre>
-<pre><code>## DataFrame with 2 rows and 33 columns
+<pre class="r"><code>head(annotation)</code></pre>
+<pre><code>## DataFrame with 6 rows and 33 columns
 ##                    chr       pos      strand        Name    AddressA
 ##            &lt;character&gt; &lt;integer&gt; &lt;character&gt; &lt;character&gt; &lt;character&gt;
 ## cg00050873        chrY   9363356           -  cg00050873    32735311
 ## cg00212031        chrY  21239348           -  cg00212031    29674443
-##               AddressB                                          ProbeSeqA
-##            &lt;character&gt;                                        &lt;character&gt;
-## cg00050873    31717405 ACAAAAAAACAACACACAACTATAATAATTTTTAAAATAAATAAACCCCA
-## cg00212031    38703326 CCCAATTAACCACAAAAACTAAACAAATTATACAATCAAAAAAACATACA
-##                                                     ProbeSeqB        Type
-##                                                   &lt;character&gt; &lt;character&gt;
-## cg00050873 ACGAAAAAACAACGCACAACTATAATAATTTTTAAAATAAATAAACCCCG           I
-## cg00212031 CCCAATTAACCGCAAAAACTAAACAAATTATACGATCGAAAAAACGTACG           I
-##               NextBase       Color    Probe_rs Probe_maf      CpG_rs   CpG_maf
-##            &lt;character&gt; &lt;character&gt; &lt;character&gt; &lt;numeric&gt; &lt;character&gt; &lt;numeric&gt;
-## cg00050873           A         Red          NA        NA          NA        NA
-## cg00212031           T         Red          NA        NA          NA        NA
-##                 SBE_rs   SBE_maf           Islands_Name Relation_to_Island
-##            &lt;character&gt; &lt;numeric&gt;            &lt;character&gt;        &lt;character&gt;
-## cg00050873          NA        NA   chrY:9363680-9363943            N_Shore
-## cg00212031          NA        NA chrY:21238448-21240005             Island
-##                                                                                                                        Forward_Sequence
-##                                                                                                                             &lt;character&gt;
-## cg00050873 TATCTCTGTCTGGCGAGGAGGCAACGCACAACTGTGGTGGTTTTTGGAGTGGGTGGACCC[CG]GCCAAGACGGCCTGGGCTGACCAGAGACGGGAGGCAGAAAAAGTGGGCAGGTGGTTGCAG
-## cg00212031 CCATTGGCCCGCCCCAGTTGGCCGCAGGGACTGAGCAAGTTATGCGGTCGGGAAGACGTG[CG]TTAAAGGGCTGAAGGGGAGGGACGGAACTGACAGTCTCTGTGACAGCTCTGAGGTGGGAG
-##                                                     SourceSeq Random_Loci
-##                                                   &lt;character&gt; &lt;character&gt;
-## cg00050873 CGGGGTCCACCCACTCCAAAAACCACCACAGTTGTGCGTTGCCTCCTCGC            
-## cg00212031 CGCACGTCTTCCCGACCGCATAACTTGCTCAGTCCCTGCGGCCAACTGGG            
-##            Methyl27_Loci UCSC_RefGene_Name UCSC_RefGene_Accession
-##              &lt;character&gt;       &lt;character&gt;            &lt;character&gt;
-## cg00050873                  TSPY4;FAM197Y2 NM_001164471;NR_001553
-## cg00212031                          TTTY14              NR_001543
-##            UCSC_RefGene_Group     Phantom         DMR    Enhancer
-##                   &lt;character&gt; &lt;character&gt; &lt;character&gt; &lt;character&gt;
-## cg00050873       Body;TSS1500                                    
-## cg00212031             TSS200                                    
+## cg00213748        chrY   8148233           -  cg00213748    30703409
+## cg00214611        chrY  15815688           -  cg00214611    69792329
+## cg00455876        chrY   9385539           -  cg00455876    27653438
+## cg01707559        chrY   6778695           +  cg01707559    45652402
+##               AddressB              ProbeSeqA              ProbeSeqB
+##            &lt;character&gt;            &lt;character&gt;            &lt;character&gt;
+## cg00050873    31717405 ACAAAAAAACAACACACAAC.. ACGAAAAAACAACGCACAAC..
+## cg00212031    38703326 CCCAATTAACCACAAAAACT.. CCCAATTAACCGCAAAAACT..
+## cg00213748    36767301 TTTTAACACCTAACACCATT.. TTTTAACGCCTAACACCGTT..
+## cg00214611    46723459 CTAACTTCCAAACCACACTT.. CTAACTTCCGAACCGCGCTT..
+## cg00455876    69732350 AACTCTAAACTACCCAACAC.. AACTCTAAACTACCCGACAC..
+## cg01707559    64689504 ACAAATTAAAAACACTAAAA.. GCGAATTAAAAACACTAAAA..
+##                   Type    NextBase       Color    Probe_rs Probe_maf
+##            &lt;character&gt; &lt;character&gt; &lt;character&gt; &lt;character&gt; &lt;numeric&gt;
+## cg00050873           I           A         Red          NA        NA
+## cg00212031           I           T         Red          NA        NA
+## cg00213748           I           A         Red          NA        NA
+## cg00214611           I           A         Red          NA        NA
+## cg00455876           I           A         Red          NA        NA
+## cg01707559           I           A         Red          NA        NA
+##                 CpG_rs   CpG_maf      SBE_rs   SBE_maf           Islands_Name
+##            &lt;character&gt; &lt;numeric&gt; &lt;character&gt; &lt;numeric&gt;            &lt;character&gt;
+## cg00050873          NA        NA          NA        NA   chrY:9363680-9363943
+## cg00212031          NA        NA          NA        NA chrY:21238448-21240005
+## cg00213748          NA        NA          NA        NA   chrY:8147877-8148210
+## cg00214611          NA        NA          NA        NA chrY:15815488-15815779
+## cg00455876          NA        NA          NA        NA   chrY:9385471-9385777
+## cg01707559          NA        NA          NA        NA   chrY:6778574-6780028
+##            Relation_to_Island       Forward_Sequence              SourceSeq
+##                   &lt;character&gt;            &lt;character&gt;            &lt;character&gt;
+## cg00050873            N_Shore TATCTCTGTCTGGCGAGGAG.. CGGGGTCCACCCACTCCAAA..
+## cg00212031             Island CCATTGGCCCGCCCCAGTTG.. CGCACGTCTTCCCGACCGCA..
+## cg00213748            S_Shore TCTGTGGGACCATTTTAACG.. CGCCCCCTCCTGCAGAACCT..
+## cg00214611             Island GCGCCGGCAGGACTAGCTTC.. CGCCCGCGCCACACTGCAGC..
+## cg00455876             Island CGCGTGTGCCTGGACTCTGA.. GACTCTGAGCTACCCGGCAC..
+## cg01707559             Island AGCGGCCGCTCCCAGTGGTG.. CGCCCTCTGTCGCTGCAGCC..
+##            Random_Loci Methyl27_Loci UCSC_RefGene_Name UCSC_RefGene_Accession
+##            &lt;character&gt;   &lt;character&gt;       &lt;character&gt;            &lt;character&gt;
+## cg00050873                              TSPY4;FAM197Y2 NM_001164471;NR_001553
+## cg00212031                                      TTTY14              NR_001543
+## cg00213748                                                                   
+## cg00214611                               TMSB4Y;TMSB4Y    NM_004202;NM_004202
+## cg00455876                                                                   
+## cg01707559                           TBL1Y;TBL1Y;TBL1Y NM_134259;NM_033284;..
+##              UCSC_RefGene_Group     Phantom         DMR    Enhancer
+##                     &lt;character&gt; &lt;character&gt; &lt;character&gt; &lt;character&gt;
+## cg00050873         Body;TSS1500                                    
+## cg00212031               TSS200                                    
+## cg00213748                                                         
+## cg00214611        1stExon;5&#39;UTR                                    
+## cg00455876                                                         
+## cg01707559 TSS200;TSS200;TSS200                                    
 ##                     HMM_Island Regulatory_Feature_Name Regulatory_Feature_Group
 ##                    &lt;character&gt;             &lt;character&gt;              &lt;character&gt;
 ## cg00050873   Y:9973136-9976273                                                 
 ## cg00212031 Y:19697854-19699393                                                 
+## cg00213748   Y:8207555-8208234                                                 
+## cg00214611 Y:14324883-14325218     Y:15815422-15815706   Promoter_Associated_..
+## cg00455876   Y:9993394-9995882                                                 
+## cg01707559   Y:6838022-6839951                                                 
 ##                    DHS
 ##            &lt;character&gt;
 ## cg00050873            
-## cg00212031</code></pre>
+## cg00212031            
+## cg00213748            
+## cg00214611            
+## cg00455876            
+## cg01707559</code></pre>
 </div>
 <div id="explore-the-dataset" class="section level1">
 <h1>Explore the dataset</h1>
-<pre class="r"><code>typeof(annotation)</code></pre>
-<pre><code>## [1] &quot;S4&quot;</code></pre>
-<pre class="r"><code>typeof(RGset)</code></pre>
-<pre><code>## [1] &quot;S4&quot;</code></pre>
+<pre class="r"><code>class(annotation)</code></pre>
+<pre><code>## [1] &quot;DFrame&quot;
+## attr(,&quot;package&quot;)
+## [1] &quot;S4Vectors&quot;</code></pre>
+<pre class="r"><code>class(RGset)</code></pre>
+<pre><code>## [1] &quot;RGChannelSetExtended&quot;
+## attr(,&quot;package&quot;)
+## [1] &quot;minfi&quot;</code></pre>
 <pre class="r"><code>getClass(RGset)</code></pre>
-<pre><code>## class: RGChannelSet 
+<pre><code>## class: RGChannelSetExtended 
 ## dim: 622399 17 
 ## metadata(0):
-## assays(2): Green Red
+## assays(5): Green Red GreenSD RedSD NBeads
 ## rownames(622399): 10600313 10600322 ... 74810490 74810492
 ## rowData names(0):
-## colnames: NULL
+## colnames(17): GSM1051870_7766130158_R03C02 GSM1052024_5730053010_R01C02
+##   ... GSM1052032_5730053011_R06C01 GSM1052037_5730053011_R06C02
 ## colData names(11): GEOID celltype ... Batch filenames
 ## Annotation
 ##   array: IlluminaHumanMethylation450k
@@ -513,91 +534,101 @@ dim(annotation)</code></pre>
 <pre><code>## 
 ##   Grn   Red 
 ## 46289 89187</code></pre>
-<pre class="r"><code>pd &lt;- RGset@colData@listData ; setDT(pd) #This setDT function lets us format our data as data.table
+<pre class="r"><code>pd &lt;- RGset@colData@listData 
 
 dim(pd)</code></pre>
-<pre><code>## [1] 17 11</code></pre>
+<pre><code>## NULL</code></pre>
 <pre class="r"><code>head(pd)</code></pre>
-<pre><code>##         GEOID celltype casestatus age gender    smoking  Array      Slide
-## 1: GSM1051870      PBL         RA  60      F      never R03C02 7766130158
-## 2: GSM1052024      PBL         RA  29      F      never R01C02 5730053010
-## 3: GSM1052035      PBL    Control  48      M occasional R04C02 5730053011
-## 4: GSM1051874      PBL    Control  51      F    current R02C01 7766130166
-## 5: GSM1051871      PBL         RA  57      F      never R05C02 7766130158
-## 6: GSM1051872      PBL         RA  64      F    current R06C02 7766130158
-##                        Basename Batch
-## 1: GSM1051870_7766130158_R03C02     2
-## 2: GSM1052024_5730053010_R01C02     1
-## 3: GSM1052035_5730053011_R04C02     1
-## 4: GSM1051874_7766130166_R02C01     2
-## 5: GSM1051871_7766130158_R05C02     2
-## 6: GSM1051872_7766130158_R06C02     2
-##                                                   filenames
-## 1: E:/GESS/2060001/Data//idats/GSM1051870_7766130158_R03C02
-## 2: E:/GESS/2060001/Data//idats/GSM1052024_5730053010_R01C02
-## 3: E:/GESS/2060001/Data//idats/GSM1052035_5730053011_R04C02
-## 4: E:/GESS/2060001/Data//idats/GSM1051874_7766130166_R02C01
-## 5: E:/GESS/2060001/Data//idats/GSM1051871_7766130158_R05C02
-## 6: E:/GESS/2060001/Data//idats/GSM1051872_7766130158_R06C02</code></pre>
-<pre class="r"><code>pd[, table(casestatus)]</code></pre>
-<pre><code>## casestatus
+<pre><code>## $GEOID
+##  [1] &quot;GSM1051870&quot; &quot;GSM1052024&quot; &quot;GSM1052035&quot; &quot;GSM1051874&quot; &quot;GSM1051871&quot;
+##  [6] &quot;GSM1051872&quot; &quot;GSM1051866&quot; &quot;GSM1051863&quot; &quot;GSM1052025&quot; &quot;GSM1052021&quot;
+## [11] &quot;GSM1052029&quot; &quot;GSM1051879&quot; &quot;GSM1051878&quot; &quot;GSM1051883&quot; &quot;GSM1051877&quot;
+## [16] &quot;GSM1052032&quot; &quot;GSM1052037&quot;
+## 
+## $celltype
+##  [1] &quot;PBL&quot; &quot;PBL&quot; &quot;PBL&quot; &quot;PBL&quot; &quot;PBL&quot; &quot;PBL&quot; &quot;PBL&quot; &quot;PBL&quot; &quot;PBL&quot; &quot;PBL&quot; &quot;PBL&quot; &quot;PBL&quot;
+## [13] &quot;PBL&quot; &quot;PBL&quot; &quot;PBL&quot; &quot;PBL&quot; &quot;PBL&quot;
+## 
+## $casestatus
+##  [1] &quot;RA&quot;      &quot;RA&quot;      &quot;Control&quot; &quot;Control&quot; &quot;RA&quot;      &quot;RA&quot;      &quot;RA&quot;     
+##  [8] &quot;Control&quot; &quot;RA&quot;      &quot;Control&quot; &quot;RA&quot;      &quot;RA&quot;      &quot;RA&quot;      &quot;Control&quot;
+## [15] &quot;RA&quot;      &quot;RA&quot;      &quot;Control&quot;
+## 
+## $age
+##  [1] 60 29 48 51 57 64 44 43 55 53 46 47 37 52 53 65 59
+## 
+## $gender
+##  [1] &quot;F&quot; &quot;F&quot; &quot;M&quot; &quot;F&quot; &quot;F&quot; &quot;F&quot; &quot;M&quot; &quot;F&quot; &quot;F&quot; &quot;M&quot; &quot;F&quot; &quot;M&quot; &quot;M&quot; &quot;F&quot; &quot;M&quot; &quot;F&quot; &quot;M&quot;
+## 
+## $smoking
+##  [1] &quot;never&quot;      &quot;never&quot;      &quot;occasional&quot; &quot;current&quot;    &quot;never&quot;     
+##  [6] &quot;current&quot;    &quot;never&quot;      &quot;current&quot;    &quot;occasional&quot; &quot;ex&quot;        
+## [11] &quot;ex&quot;         &quot;ex&quot;         &quot;ex&quot;         &quot;current&quot;    &quot;ex&quot;        
+## [16] &quot;current&quot;    &quot;never&quot;</code></pre>
+<pre class="r"><code>table(pd$casestatus)</code></pre>
+<pre><code>## 
 ## Control      RA 
 ##       6      11</code></pre>
-<pre class="r"><code>pd[, table(gender)]</code></pre>
-<pre><code>## gender
+<pre class="r"><code>table(pd$gender)</code></pre>
+<pre><code>## 
 ##  F  M 
 ## 10  7</code></pre>
-<pre class="r"><code>pd[, table(gender, casestatus)]</code></pre>
-<pre><code>##       casestatus
-## gender Control RA
-##      F       3  7
-##      M       3  4</code></pre>
-<pre class="r"><code>pd[, table(Batch)]</code></pre>
-<pre><code>## Batch
+<pre class="r"><code>table(pd$gender, pd$casestatus)</code></pre>
+<pre><code>##    
+##     Control RA
+##   F       3  7
+##   M       3  4</code></pre>
+<pre class="r"><code>table(pd$Batch)</code></pre>
+<pre><code>## 
 ##  1  2 
 ##  7 10</code></pre>
-<pre class="r"><code>pd[, table(Batch, casestatus)]</code></pre>
-<pre><code>##      casestatus
-## Batch Control RA
-##     1       3  4
-##     2       3  7</code></pre>
-<pre class="r"><code>pd[, summary(age)]</code></pre>
+<pre class="r"><code>table(pd$Batch, pd$casestatus)</code></pre>
+<pre><code>##    
+##     Control RA
+##   1       3  4
+##   2       3  7</code></pre>
+<pre class="r"><code>summary(pd$age)</code></pre>
 <pre><code>##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
 ##   29.00   46.00   52.00   50.76   57.00   65.00</code></pre>
-<pre class="r"><code>pd[gender == &quot;M&quot;, summary(age)]</code></pre>
+<pre class="r"><code>summary(pd$age[pd$sex == &quot;M&quot;])</code></pre>
 <pre><code>##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-##   37.00   45.50   48.00   48.71   53.00   59.00</code></pre>
-<pre class="r"><code>pd[gender == &quot;F&quot;, summary(age)]</code></pre>
+## </code></pre>
+<pre class="r"><code>summary(pd$age[pd$sex == &quot;M&quot;])</code></pre>
 <pre><code>##    Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-##   29.00   47.25   53.50   52.20   59.25   65.00</code></pre>
+## </code></pre>
 <pre class="r"><code>head(pd)</code></pre>
-<pre><code>##         GEOID celltype casestatus age gender    smoking  Array      Slide
-## 1: GSM1051870      PBL         RA  60      F      never R03C02 7766130158
-## 2: GSM1052024      PBL         RA  29      F      never R01C02 5730053010
-## 3: GSM1052035      PBL    Control  48      M occasional R04C02 5730053011
-## 4: GSM1051874      PBL    Control  51      F    current R02C01 7766130166
-## 5: GSM1051871      PBL         RA  57      F      never R05C02 7766130158
-## 6: GSM1051872      PBL         RA  64      F    current R06C02 7766130158
-##                        Basename Batch
-## 1: GSM1051870_7766130158_R03C02     2
-## 2: GSM1052024_5730053010_R01C02     1
-## 3: GSM1052035_5730053011_R04C02     1
-## 4: GSM1051874_7766130166_R02C01     2
-## 5: GSM1051871_7766130158_R05C02     2
-## 6: GSM1051872_7766130158_R06C02     2
-##                                                   filenames
-## 1: E:/GESS/2060001/Data//idats/GSM1051870_7766130158_R03C02
-## 2: E:/GESS/2060001/Data//idats/GSM1052024_5730053010_R01C02
-## 3: E:/GESS/2060001/Data//idats/GSM1052035_5730053011_R04C02
-## 4: E:/GESS/2060001/Data//idats/GSM1051874_7766130166_R02C01
-## 5: E:/GESS/2060001/Data//idats/GSM1051871_7766130158_R05C02
-## 6: E:/GESS/2060001/Data//idats/GSM1051872_7766130158_R06C02</code></pre>
+<pre><code>## $GEOID
+##  [1] &quot;GSM1051870&quot; &quot;GSM1052024&quot; &quot;GSM1052035&quot; &quot;GSM1051874&quot; &quot;GSM1051871&quot;
+##  [6] &quot;GSM1051872&quot; &quot;GSM1051866&quot; &quot;GSM1051863&quot; &quot;GSM1052025&quot; &quot;GSM1052021&quot;
+## [11] &quot;GSM1052029&quot; &quot;GSM1051879&quot; &quot;GSM1051878&quot; &quot;GSM1051883&quot; &quot;GSM1051877&quot;
+## [16] &quot;GSM1052032&quot; &quot;GSM1052037&quot;
+## 
+## $celltype
+##  [1] &quot;PBL&quot; &quot;PBL&quot; &quot;PBL&quot; &quot;PBL&quot; &quot;PBL&quot; &quot;PBL&quot; &quot;PBL&quot; &quot;PBL&quot; &quot;PBL&quot; &quot;PBL&quot; &quot;PBL&quot; &quot;PBL&quot;
+## [13] &quot;PBL&quot; &quot;PBL&quot; &quot;PBL&quot; &quot;PBL&quot; &quot;PBL&quot;
+## 
+## $casestatus
+##  [1] &quot;RA&quot;      &quot;RA&quot;      &quot;Control&quot; &quot;Control&quot; &quot;RA&quot;      &quot;RA&quot;      &quot;RA&quot;     
+##  [8] &quot;Control&quot; &quot;RA&quot;      &quot;Control&quot; &quot;RA&quot;      &quot;RA&quot;      &quot;RA&quot;      &quot;Control&quot;
+## [15] &quot;RA&quot;      &quot;RA&quot;      &quot;Control&quot;
+## 
+## $age
+##  [1] 60 29 48 51 57 64 44 43 55 53 46 47 37 52 53 65 59
+## 
+## $gender
+##  [1] &quot;F&quot; &quot;F&quot; &quot;M&quot; &quot;F&quot; &quot;F&quot; &quot;F&quot; &quot;M&quot; &quot;F&quot; &quot;F&quot; &quot;M&quot; &quot;F&quot; &quot;M&quot; &quot;M&quot; &quot;F&quot; &quot;M&quot; &quot;F&quot; &quot;M&quot;
+## 
+## $smoking
+##  [1] &quot;never&quot;      &quot;never&quot;      &quot;occasional&quot; &quot;current&quot;    &quot;never&quot;     
+##  [6] &quot;current&quot;    &quot;never&quot;      &quot;current&quot;    &quot;occasional&quot; &quot;ex&quot;        
+## [11] &quot;ex&quot;         &quot;ex&quot;         &quot;ex&quot;         &quot;current&quot;    &quot;ex&quot;        
+## [16] &quot;current&quot;    &quot;never&quot;</code></pre>
 </div>
 <div id="save-rgset-object" class="section level1">
 <h1>Save RGset object</h1>
 <p>While in our 17 sample example for lab no process takes especially long, once you scale up the number of samples you will see larger and larger increases in computation time. Therefore, saving large intermediate data products such as the RGChannelSet is helpful.</p>
 <pre class="r"><code># Save RGChannelSet object 
-save(RGset, file = file.path(data_dir, &quot;RGset.rda&quot;))</code></pre>
+save(RGset, file = file.path(&quot;Data&quot;, &quot;RGset.rda&quot;))</code></pre>
 </div>
 
 

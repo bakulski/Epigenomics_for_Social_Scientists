@@ -4,7 +4,7 @@ subtitle: "01 Installing and loading packages, reading in datasets"
 author: "Kelly Bakulski, Shan Andrews, John Dou, Jonah Fisher, Erin Ware"
 date: "Last compiled on `r format(Sys.Date(), '%B %d, %Y')`"
 output: 
-  pdf_document:
+  html_document:
   toc: true
   toc_float: true
   number_sections: true
@@ -14,6 +14,7 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, eval = T, warning = F, message = F)
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
 ```
 
 # Setup
@@ -39,13 +40,11 @@ BiocManager::install(c(
   "GO.dv", # Gene ontology queries
   # "missMethyl",
   "GEOquery",
-  "wateRmelon" #For QC and 
+  "wateRmelon" #For quality control
 ))
-
 # Install standard R packages that we want to use.
 
 install.packages(c(
-  "data.table", #Helpful data formatting tools
   "ggsci", #Color palettes inspired by scientific publications and tvshows
   "viridis", #Color palette helpful for colorblindness
   "RColorBrewer", # Color palettes for data visualization,
@@ -53,7 +52,10 @@ install.packages(c(
   "MatrixEQTL", # Fast eQTL and meQTL analyses
   "qqman", # QQ and manhattan plots
   "nlme", # Non-linear mixed effects models
-  "BiasedUrn" # Hypergeometric distributions
+  "BiasedUrn", # Hypergeometric distributions
+  "here", #Automated datapath inferences
+  "GGally", # For plotting functions
+  "ggpubr" #Also plotting functions
 ))
 ```
 
@@ -63,24 +65,9 @@ This should be done whenever you start a new r session. For this script we only 
 
 ```{r load packages, message=F, warning=F}
 library(minfi)
-library(data.table)
 library(magrittr)
 library(knitr)
-```
-
-## Setting file paths for data
-
-Here we just set up paths for loading of data
-
-```{r source data}
-# Setting file paths for data
-
-# The rest of this script assumes that your data are in a folder called "project" on the Cloud.
-# As you work on your own computer, you will need to specify the folder locations.
-
-# Folder location of the data files
-data_dir <- "E:/GESS/2060001/Data/"# for rstudio cloud switch to: "/cloud/project/Data/"
-data_dir
+library(here)
 ```
 
 # Read in the data
@@ -88,11 +75,11 @@ data_dir
 Here we read in our phenotype data and our RGChannelSet. The RGset is a single large object that is an amalgamation of the .idat files where the data are organized and summarised in an accessible and convenient way.
 
 ```{r load phenotype data and create rgset}
-pheno <- data.table::fread(file.path(data_dir, "samplesheet.csv")) #Base R used read.csv() to read in comma seperated value files
+pheno <- read.csv(here("Data","samplesheet.csv"))
 dim(pheno)
 head(pheno)
 
-RGset <- read.metharray.exp(file.path(data_dir, "idats"), targets = pheno, verbose = TRUE, extended = T)
+RGset <- read.metharray.exp(here("Data", "idats"), targets = pheno, verbose = TRUE, extended = T)
 dim(RGset)
 
 manifest <- getManifest(RGset)
@@ -100,14 +87,14 @@ str(manifest)
 
 annotation <- getAnnotation(RGset)
 dim(annotation)
-annotation[1:4, ]
+head(annotation)
 ```
 
 # Explore the dataset
 
 ```{r explore rgset, manifest, annotation, pd}
-typeof(annotation)
-typeof(RGset)
+class(annotation)
+class(RGset)
 getClass(RGset)
 
 manifest
@@ -115,20 +102,20 @@ head(getProbeInfo(manifest))
 dim(getProbeInfo(manifest))
 table(getProbeInfo(manifest)$Color)
 
-pd <- RGset@colData@listData ; setDT(pd) #This setDT function lets us format our data as data.table
+pd <- RGset@colData@listData 
 
 dim(pd)
 head(pd)
 
-pd[, table(casestatus)]
-pd[, table(gender)]
-pd[, table(gender, casestatus)]
-pd[, table(Batch)]
-pd[, table(Batch, casestatus)]
+table(pd$casestatus)
+table(pd$gender)
+table(pd$gender, pd$casestatus)
+table(pd$Batch)
+table(pd$Batch, pd$casestatus)
 
-pd[, summary(age)]
-pd[gender == "M", summary(age)]
-pd[gender == "F", summary(age)]
+summary(pd$age)
+summary(pd$age[pd$sex == "M"])
+summary(pd$age[pd$sex == "M"])
 
 head(pd)
 ```
@@ -139,6 +126,6 @@ While in our 17 sample example for lab no process takes especially long, once yo
 
 ```{r save RGset}
 # Save RGChannelSet object 
-save(RGset, file = file.path(data_dir, "RGset.rda"))
+save(RGset, file = file.path("Data", "RGset.rda"))
 ```
 

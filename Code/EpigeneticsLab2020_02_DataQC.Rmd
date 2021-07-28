@@ -4,7 +4,7 @@ subtitle: "02 quality control of datasets"
 author: "Kelly Bakulski, Shan Andrews, John Dou, Jonah Fisher, Erin Ware"
 date: "Last compiled on `r format(Sys.Date(), '%B %d, %Y')`"
 output: 
-  pdf_document:
+  html_document:
   toc: true
   toc_float: true
   number_sections: true
@@ -31,20 +31,7 @@ library(Hmisc)
 library(ggplot2)
 library(ggsci)
 library(tidyverse)
-library(data.table)
-```
-
-## Setting file paths for data
-
-```{r source data}
-# Setting file paths for data
-
-# The rest of this script assumes that your data are in a folder called "project" on the Cloud.
-# As you work on your own computer, you will need to specify the folder locations.
-
-# Folder location of the data files
-data_dir <- "E:/GESS/2060001/Data/"# switch back to "/cloud/project/Data"
-data_dir
+library(here)
 ```
 
 # Minfi preprocessing
@@ -52,8 +39,8 @@ data_dir
 There are various quality control steps that need to be executed before we can say that the data is clean. Initially we will use the minfi package to process some of our large data sets and understand the quality of the data.
 
 ```{r load data}
-load(file.path(data_dir, "RGset.rda"))
-pd <- RGset@colData@listData ; setDT(pd)
+load(here("Data", "RGset.rda"))
+pd <- data.frame(RGset@colData@listData)
 ```
 
 ## Extract methylated and unmethylated signals
@@ -79,11 +66,11 @@ Unmeth[1:5, 1:5]
 
 ```{r visualize raw intensities}
 # Overall intensity: M vs. U
-pd[, MQC := log2(colMedians(Meth))] # := lets us assign a new column within pd; in r base this would be pd$MQC <- log2(colMedians(Meth))
-pd[, UQC := log2(colMedians(Unmeth))]
+pd$MQC <- log2(colMedians(Meth)) # <- lets us assign a new column within pd; in r base this would be pd$MQC <- log2(colMedians(Meth))
+pd$UQC <- log2(colMedians(Unmeth))
 
-pd[, Slide := factor(Slide)] #If we don't change datatypes then R will think we want slide and batch as continuous integers rather than factors.
-pd[, Batch := factor(Batch)]
+pd$Slide <- factor(pd$Slide) #If we don't change datatypes then R will think we want slide and batch as continuous integers rather than factors.
+pd$Batch <- factor(pd$Batch)
 ```
 
 #### Raw intensities
@@ -167,7 +154,7 @@ rm(Meth, Unmeth) # Clean up our coding environment
 ```{r create meth set}
 library(ewastools)
 
-meth <- read_idats(file.path(data_dir, "idats", pd[, Basename])) %>% detectionP()
+meth <- read_idats(here("Data", "idats", pd$Basename)) %>% detectionP()
 ```
 
 ## Illumina control metrics
@@ -178,10 +165,10 @@ We can visualize a control metric. Each control has a threshold that a samples o
 
 ```{r control metrics, fig.height=2, fig.width=8}
 ctrls <- control_metrics(meth)
-pd[, ctrlfail := ewastools::sample_failure(ctrls)]
-pd[, table(ctrlfail)]
+pd$ctrlfail <- ewastools::sample_failure(ctrls)
+table(pd$ctrlfail)
 
-bisulfite <- data.table(measures = ctrls["Bisulfite Conversion II"] %>% unlist)
+bisulfite <- data.frame(measures = unlist(ctrls["Bisulfite Conversion II"]))
 thresh <- base::attr(ctrls$`Bisulfite Conversion II`, "threshold")
 
 ggplot(bisulfite, aes(measures, 1, color = measures > thresh)) +
@@ -201,8 +188,8 @@ rm(ctrls)
 We can check conflicts between the reported and predicted sex of each sample. Predicted sex is derived from looking at the signal intensities of the sex chromosomes. This can help us to identify poorly assayed samples or misplates.
 
 ```{r check sex}
-sex <- check_sex(meth %>% correct_dye_bias())
-pd[, c("X","Y") := bind_rows(sex)]
+sex <- meth %>% correct_dye_bias() %>% check_sex()
+pd[c("X","Y")] <- bind_rows(sex)
 
 ggplot(pd, aes(X,Y, color = gender)) +
   geom_point() +
@@ -224,7 +211,7 @@ snps <- meth$manifest[probe_type == "rs", index]
 #All of these steps will be discussed later in the lab
 geno <- meth %>% correct_dye_bias() %>% mask(0.01) %>% dont_normalize %>% .[snps,] %>% call_genotypes()
 
-check_snp_agreement(geno, pd[, GEOID], pd[, GEOID])
+check_snp_agreement(geno, pd$GEOID, pd$GEOID)
 ```
 
 The function returns NULL. This means that there are no conflicts in genetic relatedness. All of our 17 look genetically unrelated.
@@ -243,7 +230,7 @@ beta <- meth %>% correct_dye_bias %>% dont_normalize
 
 ![He'sn't not sure either](E:/GESS/2060001/masquerade.jpg)
 
-Masking here refers to deleting certain observations by rewriting them as NA. If you have masked values you will not have equal observations for all samples, which may be problematic. This can be fixed by data imputation which we will touch on later. 
+Masking here refers to deleting certain observations by rewriting them as NA. If you have masked values you will not have equal observations for all samples, which may be problematic. This can be fixed by data imputation.
 
 ```{r masking}
 #Mask all observations with DetectionP > 0.01
@@ -260,14 +247,14 @@ We get a detectionP value for every observation of all probes in all samples. Th
 
 ```{r calculate detection P}
 detp <- meth$detP
-save(detp, file = file.path(data_dir, "detP.rda"))
+save(detp, file = here("Data", "detP.rda"))
 ```
 
 
 ##### Plot probe detectionP
 
 ```{r plot detection P}
-detprobe <- data.table(pmean = rowMeans(detp, na.rm = T)) 
+detprobe <- data.frame(pmean = rowMeans(detp, na.rm = T)) 
 probecut <- 0.05
 
 ggplot(detprobe, aes(x = pmean)) +
@@ -277,8 +264,8 @@ ggplot(detprobe, aes(x = pmean)) +
   theme_bw() +
   labs(x = "Mean detectionP per probe", y = "Count")
 
-detprobe[, table(pmean > 0.05)]
-detprobe[, table(pmean > 0.05) %>% '/'(length(pmean)) %>% round(digits = 3)]
+table(detprobe$pmean > 0.05)
+table(detprobe$pmean > 0.05) %>% '/'(nrow(detprobe)) %>% round(digits = 3)
 
 rm(detprobe)
 ```
@@ -292,10 +279,11 @@ nBeads refers to the number of hybridizing beads that were responsible for the b
 The bead numbers follow a normal distribution.
 
 ```{r get and display nbeads}
+mani <- ewastools:::manifest_450K
 nbeads <- wateRmelon::beadcount(RGset)
-nbeads <- nbeads[match(mani[probe_type != "rs", probe_id],rownames(nbeads)),]
+nbeads <- nbeads[match(mani[mani$probe_type != "rs", probe_id],rownames(nbeads)),]
 
-beadmean <- data.table(bmean = rowMeans(nbeads, na.rm = T))
+beadmean <- data.frame(bmean = rowMeans(nbeads, na.rm = T))
 
 ggplot(beadmean, aes(x = bmean)) +
   geom_histogram(bins = 200, color = "black", fill = "grey") +
@@ -315,7 +303,7 @@ Only a small proportion of the observations fail this check
 
 ## Filter probes
 
-All observations with a detectionP value of <0.01 and/or a beadcount of under 5 will be labeled as unreliable. All probes with over 5% unreliable values will be cut. 
+All observations with a detectionP value of <0.05 and/or a beadcount of under 5 will be labeled as unreliable. All probes with over 5% unreliable values will be cut. 
 
 ```{r filter out probes}
 beadmin <- 5
@@ -323,7 +311,7 @@ detpmax <- 0.01
 pthresh <- 0.05
 
 reliable <- (detp > detpmax) & (nbeads < beadmin) 
-reliable[is.na(betakeep)] <- F
+reliable[is.na(reliable)] <- F
 
 dim(beta)
 
@@ -352,9 +340,9 @@ rm(reliable)
 Cross-reactive probes are shown to 'co-hybridize' onto multiple different sites on the epigenome. This means that we can't know for sure whether the methylation measures are measuring the site we actually want it to. 
 
 ```{r cross-reactive probes}
-load(file.path(data_dir, "cross.probes.info.rda")) ; setDT(cross.probes.info)
+load(here("Data", "cross.probes.info.rda")) 
 
-beta <- beta[!rownames(beta) %in% as.character(cross.probes.info[, TargetID]),]
+beta <- beta[!rownames(beta) %in% as.character(cross.probes.info$TargetID),]
 
 rm(cross.probes.info)
 ```
@@ -364,16 +352,16 @@ rm(cross.probes.info)
 Gap probes are probes for which the methylation beta clusters into discrete groups-- these typically have their methylation driven by underlying SNPs. So with these probes the underlying genotype explains the beta methylation value. These probes do not necessarily need to be cut but it's good to be aware of them. With a very low sample 
 
 ```{r show gap probes, eval = F}
-gaps <- gaphunter(beta)
+gaps <- gaphunter(beta, outCutoff = 0.1, threshold = 0.15) # We set a very high outlier cutoff because we have so few samples. 
 
 str(gaps)
 
 #Get a probe in the list as an example and plot the beta distribution.
 
-gap1 <- beta[rownames(gaps$sampleresults)[2],]
+gap1 <- beta[rownames(gaps$sampleresults)[6],]
 gap1 <- data.frame(gap1)
 
-ggplot(gap1, aes(x = rownames(gaps$sampleresults)[2], y = gap1)) +
+ggplot(gap1, aes(x = rownames(gaps$sampleresults)[6], y = gap1)) +
   geom_jitter(width = 0.01) +
   labs(title = sprintf("Methylation Beta Values for probe %s", rownames(gaps$sampleresults)[2]), x = " ", y = "beta") +
   coord_cartesian(ylim = c(0, 1)) +
@@ -389,214 +377,152 @@ Cell type proportions are a strong confounder of DNA methylation. Different cell
 ```{r estimate cell type proportions}
 cells <- estimateLC(beta, ref = "salas", constrained = T)
 
-ggplot(melt(cells), aes(x = value, y = ..density.., fill = variable)) +
+ggplot(pivot_longer(cells, cols = 1:6), aes(x = value, y = ..density.., fill = name)) +
   geom_density(alpha = 0.2) +
   scale_fill_viridis_d() +
   theme_bw() +
   labs(x = "Proportion", y = "Density", title = "Sample Proportions by Cell-Types", fill = "Cell-Type")
 
-pd <- data.table(pd, cells)
-```
-
-# Principal components on cell proportions
-
-```{r principal components on cell proportions}
-cellpcs <- prcomp(t(cells))
-out.var <- cellpcs$sdev^2 / sum(cellpcs$sdev^2)
-out.var
-
-
-screeplot(prin.cell, col = "dodgerblue", xlab = "Principal Components of Estimated Cell Type", main = "", cex.lab = 1.3)
-
-myColors <- c("seagreen3", "dodgerblue", "darkorchid", "firebrick1", "darkorange", "khaki1")
-palette(myColors)
-
-par(mar = c(0, 0, 0, 0))
-plot.new()
-legend("bottom", c("Bcell", "CD4T", "CD8T", "Gran", "Mono", "NK"), fill = myColors, title = "Principal Components by Estimated Cell Type")
-pairs(prin.cell$x[, 1:6], col = as.factor(rownames(prin.cell$x)), labels = c("PC1", "PC2", "PC3", "PC4", "PC5", "PC6"), pch = 15)
-
-summary(pd.n$Gran)
-
-
+pd <- data.frame(pd, cells)
 ```
 
 # Drop samples with problematic cell proportions
 
 ```{r drop samples problem cell proportions}
 # Pick cutoffs for biological ranges for cell type estimates.
-pd.n.drop <- pd.n[pd.n$Mono < 0.2, ]
-beta <- beta[, colnames(beta) %in% rownames(pd.n.drop)]
+pd <- pd[pd$MO < 0.2, ]
+pd$grq <- cut2(pd$GR, g = 4)
+beta <- beta[,colnames(beta) %in% pd$Basename]
 dim(beta)
 ```
 
-# Principal components on noob preprocessed data
+# Principal components on samples from the beta matrix {.tabset .tabset-pills}
 
-```{r principal components on noob data}
-# Noob PCA plots
-pd.n.drop$gran.quart <- cut2(pd.n.drop$Gran, g = 4)
+```{r principal components on beta data}
+#This is mean imputation which is pretty imprecise. W
+nainds <- which(is.na(beta), arr.ind = T)
+beta[nainds] <- rowMeans(beta[nainds[1,],], na.rm = T)
 
-prin <- prcomp(t(beta), center = T, scale. = F)
-out.var <- prin$sdev^2 / sum(prin$sdev^2)
-out.var[1:10]
+#Remove sex chromosome probes before pca
+mani <- ewastools:::manifest_450K
+sexprobes <- mani[mani$chr %in% c("X", "Y"),][, "probe_id"]
+betapcs <- prcomp(t(beta[!rownames(beta) %in% sexprobes,]), center = T, scale. = F)
+out.var <- betapcs$sdev^2 / sum(betapcs$sdev^2)
+pcvar <- data.frame(pcs = seq(1, length(out.var)), var = out.var)
+
+ggplot(pcvar, aes(x = pcs, y = var)) +
+  geom_bar(stat = "identity", color = "black") +
+  theme_bw() +
+  labs(x = "Principal Component Number", y = "Variance Explained")
 ```
 
-# Plot principal components on noob data{.tabset .tabset-pills}
-
-```{r plot principal components on noob data}
-screeplot(prin, col = "dodgerblue", xlab = "Principal Components of Noob Beta Values", main = "", cex.lab = 1.3)
+```{r pcplot}
+library(GGally)
+#Here we can define another function to use to look at principle component plots by different attributes.
+pcplot <- function(pheno){
+  ggpairs(data.frame(betapcs$x)[, 1:6], aes(color = factor(unlist(pd[pheno]))))
+}
 ```
 
 ## By sex
 
 ```{r}
-plot.new()
-palette(myColors)
-par(mar = c(0, 0, 0, 0))
-legend("bottom", levels(as.factor(pd.n.drop$gender)), fill = myColors, title = "Principal Components by Sex")
-pairs(prin$x[, 1:6], col = as.factor(pd.n.drop$gender), labels = c("PC1", "PC2", "PC3", "PC4", "PC5", "PC6"), pch = 1, cex = 0.5)
+pcplot("gender")
 ```
 
-## By batch
+## Batch
 
-```{r}
-plot.new()
-legend("bottom", levels(as.factor(pd.n.drop$Batch)), fill = myColors, title = "Principal Components by Batch")
-pairs(prin$x[, 1:6], col = as.factor(pd.n.drop$Batch), labels = c("PC1", "PC2", "PC3", "PC4", "PC5", "PC6"), pch = 1, cex = 0.5)
+```{r pcs by batch}
+pcplot("Batch")
 ```
 
-## By case status
+## Case status
 
-```{r}
-
-plot.new()
-legend("bottom", levels(as.factor(pd.n.drop$casestatus)), fill = myColors, title = "Principal Components by Case Status")
-pairs(prin$x[, 1:6], col = as.factor(pd.n.drop$casestatus), labels = c("PC1", "PC2", "PC3", "PC4", "PC5", "PC6"), pch = 1, cex = 0.5)
+```{r pcs by case status}
+pcplot("casestatus")
 ```
 
-## By array position
+## By Slide
 
-```{r}
-
-plot.new()
-palette(graphColors)
-legend("bottom", levels(as.factor(pd.n.drop$Array)), fill = graphColors, title = "Principal Components by Array Position")
-pairs(prin$x[, 1:6], col = as.factor(pd.n.drop$Array), labels = c("PC1", "PC2", "PC3", "PC4", "PC5", "PC6"), pch = 1, cex = 0.5)
+```{r pcs by slide}
+pcplot("Slide")
 ```
 
-## By slide
+## GR quartile
 
-```{r}
-
-plot.new()
-legend("bottom", levels(as.factor(pd.n.drop$Slide)), fill = graphColors, title = "Principal Components by Slide")
-pairs(prin$x[, 1:6], col = as.factor(pd.n.drop$Slide), labels = c("PC1", "PC2", "PC3", "PC4", "PC5", "PC6"), pch = 1, cex = 0.5)
-```
-
-## By granulocyte proportion quartile
-
-```{r}
-
-plot.new()
-legend("bottom", levels(as.factor(pd.n.drop$gran.quart)), fill = graphColors, title = "Principal Components by Quartile of Gran")
-pairs(prin$x[, 1:6], col = as.factor(pd.n.drop$gran.quart), labels = c("PC1", "PC2", "PC3", "PC4", "PC5", "PC6"), pch = 1, cex = 0.5)
+```{r }
+pcplot("grq")
 ```
 
 # Drop samples with missing data at key covariates
 
 ```{r drop samples missing key covariates}
 # Drop samples with missing data at key covariates
-table(pd.n.drop$gender, useNA = "always")
-table(pd.n.drop$casestatus, useNA = "always")
-table(pd.n.drop$smoking, useNA = "always")
-table(pd.n.drop$Batch, useNA = "always")
+covars <- c("gender", "casestatus", "smoking", "Batch")
 
-# No samples missing data, we're okay. But run this line anyway.
-pd.complete <- pd.n.drop[!(is.na(pd.n.drop$smoking)), ] # Example of how to remove.
-save(pd.complete, file = file.path(data_dir, "pd-complete.rda"))
+pd <- pd[complete.cases(pd[, covars]), ] # Example of how to remove.
+save(pd, file = here("Data", "pdqc.rda"))
 ```
 
 # Use Combat to adjust for batch effects
 
 ```{r combat to adjust for batch effects}
-betaoob.complete <- beta[, colnames(beta) %in% rownames(pd.complete)]
-rm(beta)
-mod <- model.matrix(~ pd.complete$gender + pd.complete$casestatus + pd.complete$smoking)
+mod <- model.matrix(~ pd$gender + pd$casestatus + pd$smoking)
 
-# combat.beta <- ComBat(dat = betaoob.complete, batch = pd.complete$Batch, mod = mod)
+### These 2 following lines have already been run as they take too much memory for rstudio cloud
+# combat.beta <- ComBat(dat = beta, batch = pd$Batch, mod = mod)
+# save(combat.beta, file = here("Data", "Premade_Intermediate_Files", "combat-beta.rda"))
 
-# if ComBat requires more memory than available, load premade results:
-load(file.path(data_dir, "Premade_Intermediate_Files/combat-beta.rda"))
-combat.beta[1:5, 1:5]
+load(here("Data", "Premade_Intermediate_Files", "combat-beta.rda"))
 
-# save the cleaned matrix.
-save(combat.beta, file = file.path(data_dir, "combat-beta.rda"))
-
-prin <- prcomp(t(combat.beta), center = T, scale. = F)
-pd.complete <- data.frame(pd.complete, prin$x)
-save(pd.complete, file = file.path(data_dir, "Premade_Intermediate_Files/pd-complete.rda"))
-
-out.var <- prin$sdev^2 / sum(prin$sdev^2)
+combatpcs <- prcomp(t(combat.beta[!rownames(combat.beta) %in% sexprobes,]), center = T, scale. = F)
+out.var <- combatpcs$sdev^2 / sum(combatpcs$sdev^2)
 out.var[1:10]
+
+pcvar <- data.frame(pcs = seq(1, length(out.var)), var = out.var)
+
+ggplot(pcvar, aes(x = pcs, y = var)) +
+  geom_bar(stat = "identity", color = "black") +
+  theme_bw() +
+  labs(x = "Principal Component Number", y = "Variance Explained")
 ```
 
 # Plot principal components of combat data{.tabset .tabset-pills}
 
-```{r plot principal components of combat data}
-screeplot(prin, col = "dodgerblue", xlab = "Principal Components of Noob Beta Values", main = "", cex.lab = 1.3)
+```{r pcplot with combat}
+library(GGally)
+#Here we can define another function to use to look at principle component plots by different attributes.
+pcplotc <- function(pheno){
+  ggpairs(data.frame(combatpcs$x)[, 1:6], aes(color = factor(unlist(pd[pheno]))))
+}
 ```
 
 ## By sex
 
-```{r}
-plot.new()
-palette(myColors)
-par(mar = c(0, 0, 0, 0))
-legend("bottom", levels(as.factor(pd.complete$gender)), fill = myColors, title = "Principal Components by Sex")
-pairs(prin$x[, 1:6], col = as.factor(pd.complete$gender), labels = c("PC1", "PC2", "PC3", "PC4", "PC5", "PC6"), pch = 1, cex = 0.5)
+```{r combat pcs by gender}
+pcplotc("gender")
 ```
 
-## By batch
+## Batch
 
-```{r}
-plot.new()
-legend("bottom", levels(as.factor(pd.complete$Batch)), fill = myColors, title = "Principal Components by Batch")
-pairs(prin$x[, 1:6], col = as.factor(pd.complete$Batch), labels = c("PC1", "PC2", "PC3", "PC4", "PC5", "PC6"), pch = 1, cex = 0.5)
+```{r combat pcs by batch}
+pcplotc("Batch")
 ```
 
-## By case status
+## Case status
 
-```{r}
-
-plot.new()
-legend("bottom", levels(as.factor(pd.complete$casestatus)), fill = myColors, title = "Principal Components by Case Status")
-pairs(prin$x[, 1:6], col = as.factor(pd.complete$casestatus), labels = c("PC1", "PC2", "PC3", "PC4", "PC5", "PC6"), pch = 1, cex = 0.5)
+```{r combat pcs by case status}
+pcplotc("casestatus")
 ```
 
-## By array position
+## By Slide
 
-```{r}
-
-plot.new()
-palette(graphColors)
-legend("bottom", levels(as.factor(pd.complete$Array)), fill = graphColors, title = "Principal Components by Array Position")
-pairs(prin$x[, 1:6], col = as.factor(pd.complete$Array), labels = c("PC1", "PC2", "PC3", "PC4", "PC5", "PC6"), pch = 1, cex = 0.5)
+```{r combat pcs by slide}
+pcplotc("Slide")
 ```
 
-## By slide
+## GR quartile
 
-```{r}
-
-plot.new()
-legend("bottom", levels(as.factor(pd.complete$Slide)), fill = graphColors, title = "Principal Components by Slide")
-pairs(prin$x[, 1:6], col = as.factor(pd.complete$Slide), labels = c("PC1", "PC2", "PC3", "PC4", "PC5", "PC6"), pch = 1, cex = 0.5)
-```
-
-## By quartile of granulocyte proportion
-
-```{r}
-
-plot.new()
-legend("bottom", levels(as.factor(pd.complete$gran.quart)), fill = graphColors, title = "Principal Components by Quartile of Gran")
-pairs(prin$x[, 1:6], col = as.factor(pd.complete$gran.quart), labels = c("PC1", "PC2", "PC3", "PC4", "PC5", "PC6"), pch = 1, cex = 0.5)
+```{r combat pcs by GR quartile}
+pcplotc("grq")
 ```
