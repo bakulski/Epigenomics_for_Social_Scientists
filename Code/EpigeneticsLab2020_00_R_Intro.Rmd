@@ -3,7 +3,7 @@ title: "Epigenomics for Social Scientists 2021"
 subtitle: "00 Introduction to R and R Markdown"
 author: "Kelly Bakulski"
 date: "Last compiled on `r format(Sys.Date(), '%B %d, %Y')`"
-output: html_document
+output: pdf_document
 ---
 
 # Software used

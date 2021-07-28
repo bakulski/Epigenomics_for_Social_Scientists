@@ -4,7 +4,7 @@ subtitle: "03 Single Site, Gene Ontology Association Analysis"
 author: "Kelly Bakulski, Shan Andrews, John Dou, Jonah Fisher, Erin Ware"
 date: "Last compiled on `r format(Sys.Date(), '%B %d, %Y')`"
 output: 
-  html_document:
+  pdf_document:
   toc: true
   toc_float: true
   theme: sandstone
@@ -127,14 +127,20 @@ qqman::manhattan(forman, chr = "chr", bp = "pos", p = "P.Value")
 # Create a mini result list of the first 6 hits
 tophits <- ss.hits[1:6, ]
 
-# Create a results object to populate with the case-control differences
-mymeans <- matrix(0, nrow(mytrunc), 2)
+plotop <- function(hit){
+  dat <- data.frame(vals = combat.beta[hit,], case = pd$casestatus)
+  mdiff <- mean(dat$vals[dat$case == "RA"]) - mean(dat$vals[dat$case == "Control"])
+  ggplot(dat, aes(x = case, y = vals, color = case)) +
+    geom_boxplot(outliers = F, fill = "grey", width = 0.5) +
+    geom_jitter(width = 0.1) +
+    labs(x = "Case Status", y = "Beta Methylation Value", title = sprintf("Probe %s", hit),
+         subtitle = sprintf("FDR P = %.3f. Mean Diff = %.3f", tophits$adj.P.Val[rownames(tophits) == hit], mdiff),
+         color = "Case Status") +
+    scale_color_nejm() +
+    theme_bw()
+}
 
 
-# Plot the results: here we are formatting the data in a certain way in order to fit
-# the ggplot2 plotting function. We have also shifted the position of the controls by 10bp
-# so that their methylation distribution is easier to see. We are also populating our object
-# "mymeans" with the case (first column) and control (second column) means at each site.
 for (k in 1:nrow(mytrunc)) {
   probe <- which(rownames(pre.beta) == rownames(mytrunc)[k])
   grabBeta <- pre.beta[probe, ]
