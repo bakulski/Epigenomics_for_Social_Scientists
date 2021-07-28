@@ -6,15 +6,10 @@ date: "Last compiled on `r format(Sys.Date(), '%B %d, %Y')`"
 output: html_document
 ---
 
-# Software used
-
 ## Programming language: R
 
-The programming language used here is R, which is a primarily used for statistical computing. More information can be found here <https://www.r-project.org/>.
+This course will introduce the R statistical programming language for DNA methylation. R statistical software is a freely available, versatile, and powerful program for statistical computing and graphics (<https://www.r-project.org/>). A helpful interface for R is provided by RStudio (<http://www.rstudio.com/>). For a shared educational environment in this class, we will use the online version of R and RStudio called RStudio Cloud (<https://rstudio.cloud/>). 
 
-## IDE: Rstudio
-
-IDE (Integrated Development Environment) is fancy language for a piece of software that consolidates different elements of coding. We can see this in the 4 paneled window we are looking at.
 
 ## Authoring Software: RMarkdown
 
@@ -22,7 +17,10 @@ This is an R Markdown document. Markdown is a simple formatting syntax for autho
 
 When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
+## Packages contain functions
 
+Below (where there is grey background) is a code chunk. The text in this section will be talking to R
+Here we load the `knitr` package into our current R session to make useful functions available
 ```{r, echo = FALSE}
 library(knitr)
 ```
@@ -38,16 +36,19 @@ library(knitr)
 4.  Typos (R is **case sensitive**, `x` and `X` are different)
     - RStudio helps with "tab completion"
     - discussed throughout
+5.  Often does not include any error/warning messages. Need to train self to often ask:
+    - What do I expect?
+    - What do I get?
+    - Do they match?
 
-## Explaining commands/output
+## Use functions to perform actions.
 
-An R command (we'll also call it code or a code chunk) will be grey and look like this
-
+Try the `print` function to show output 
 ```{r code}
 print("I'm code")
 ```
 
-And then directly after it, will be the output of the code.  
+Directly after the code chunk will be the output of the code.  
 So `print("I'm code")` is the code chunk and [1] "I'm code" is the output.
 
 ## R as a calculator
@@ -57,7 +58,7 @@ So `print("I'm code")` is the code chunk and [1] "I'm code" is the output.
      ^ or ** is power
      parentheses -- ( and ) -- work with order of operations 
      
-```{r calcDemo}
+```{r calculator_demo}
 2 + 2
 2 * 4
 2 ^ 3
@@ -88,9 +89,9 @@ Try evaluating the following:
 # Best practice is to take a ton of notes to help your future self and anyone who comes later to re-run your code
 ```
 
-## R variables 
-* You can create variables from within the R environment and from files on your computer
-* R uses "<-"or "=" to assign values to a variable name
+## R objects 
+* You can create objects (variables) from within the R environment and from files on your computer
+* R uses "<-"or "=" to assign values to an object name
 * Variable names are case-sensitive, i.e. X and x are different
 
 ```{r assign}
@@ -117,7 +118,7 @@ class(y)
 ## R variable practice
 Try assigning your full name to an R variable called `name`
 
-```{r myName}
+```{r my_name}
 name <- "Kelly Bakulski"
 name
 ```
@@ -130,10 +131,10 @@ x
 class(x)
 ```
 
-## The 'combine' function practice
+## Practice the 'combine' function
 Try assigning your first and last name as 2 separate character strings into a length-2 vector called `name2`
 
-```{r myName2}
+```{r my_name2}
 name2 <- c("Kelly","Bakulski")
 name2
 ```
@@ -146,7 +147,7 @@ y
 length(y)
 ```
 
-## The 'length' function  practice
+## Practice the 'length' function  
 What do you expect for the length of the `name` variable? What about the `name2` variable?
 
 What are the lengths of each?
@@ -164,27 +165,46 @@ x + c(1, 2, 3, 4)
 ```
 
 ## R functions on vectors depend on class
-But things like algebra can only be performed on numbers.
+Actions like algebra can only be performed on numbers.
 ```{r, error=TRUE}
 name2 + 4
 ```
 
 ## R assign new vectors
-And save these modified vectors as a new vector.
+Save these modified vectors as a new vector.
 ```{r assign_new_vector}
 y <- x + c(1, 2, 3, 4)
 y 
 ```
 
-Note that the R object `y` is no longer "Hello  World!" - It has effectively been overwritten by assigning new data to the variable
+Note that the R object `y` is no longer "Hello  World!" - It has  been overwritten by assigning new data to the variable. No warning or error!
+
+## Create a data frame
+Vectors have one dimension. You can combine them into data frames, which have two dimensions (row, column). To call up a single column in the data frame, use `$` to call the column by name.
+```{r data_frame}
+df<-data.frame(x, y)
+df
+
+df$x
+```
+
 
 ## The structure function
 You can get more attributes than just class.  The function `str` gives you the structure of the object.
 ```{r structure}
 str(x)
 str(y)
+str(df)
 ```
 This tells you that `x` is a numeric vector and tells you the length.
+
+## Use the help viewer
+Any time I use a new function, I navigate to the lower right panel and search for the function. This describes the purpose of the function, the default settings, and the options you can change.
+```{r}
+# Another option is to use the 'help' function to search. Look in the lower right panel and the same view will appear.
+help(str)
+```
+
 
 
 ## Review
@@ -193,5 +213,6 @@ This tells you that `x` is a numeric vector and tells you the length.
 * Assigning values to variables
 * Performing algebra on numeric variables
 
+Click the knit button at the top of this script to run all of the code together and generate a markdown report! 
 
 Introduction to R code adapted from: http://johnmuschelli.com/intro_to_r/index.html
