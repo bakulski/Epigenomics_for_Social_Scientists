@@ -4,7 +4,7 @@ subtitle: "04 Region Finding, Global, DNAm age, and meQTL Association Analysis"
 author: "Kelly Bakulski, Shan Andrews, John Dou, Jonah Fisher, Erin Ware"
 date: "Last compiled on `r format(Sys.Date(), '%B %d, %Y')`"
 output: 
-  html_document:
+  pdf_document:
   toc: true
   toc_float: true
   theme: sandstone
@@ -18,38 +18,32 @@ knitr::opts_chunk$set(echo = TRUE, warning = F)
 # Setup
 
 ## Load required packages
+
 ```{r load packages, message = F}
 #Load the matrixEQTL package
 library(MatrixEQTL)
 library(ggplot2)
 library(minfi)
 library(limma)
+library(here)
 ```
 
 # Read in the data
 
 ```{r load data}
-# Need noob, combat.beta, pd.complete, mapped files
-load(paste0(data_dir, "noob.rda"))
-load(paste0(data_dir,"combat-beta.rda"))
-load(paste0(data_dir, "pd-complete.rda"))
-load(paste0(data_dir, "mapped-noob.rda"))
+# Need noob, combat.beta, pd, mapped files
+load(here("Data", "Premade_Intermediate_Files", "combat-beta.rda"))
+load(here("Data", "pdqc.rda"))
 
-#Make sure these output to TRUE
-identical(colnames(combat.beta), colnames(noob))
-identical(rownames(pd.complete), colnames(noob))
-identical(rownames(noob), rownames(combat.beta))
-
-pre.beta <- getBeta(noob)
-chrnames <- as.character(seqnames(mapped))
-pos <- as.numeric(start(mapped))
+#Make sure this outputs to TRUE
+identical(pd$Basename, colnames(combat.beta))
 ```
 
 # Construct regression model
 
 ```{r construct regression model}
 #Construct the model matrix
-mod <- model.matrix(~ factor(pd.complete$casestatus) + pd.complete$age + factor(pd.complete$gender) + factor(pd.complete$smoking) + pd.complete$PC1)  
+mod <- model.matrix(~ factor(pd$casestatus) + pd$age + factor(pd$gender) + factor(pd$smoking) + pd$PC1)  
 ```
 
 # Region finding
@@ -71,45 +65,30 @@ mygenes <- matchGenes(mybumps[1,], genes) #Using only the first row for purpose 
 # Plot differentially methylated regions
 
 ```{r plot differentially methylated regions}
-
-#Plot the top 2 DMRs: here we are formatting the data in a certain way in order to fit
-#the ggplot2 plotting function. We have also shifted the position of the controls by 10bp
-#so that their methylation distribution is easier to see. 
-for (i in 1:2){
-#for (i in 1:1){
-	indexstart <- mybumps$indexStart[i ]
-	indexend <- mybumps$indexEnd[i ]
-	grabBeta <- pre.beta[indexstart:indexend, ]
-	formbeta <- c()
-	for (j in 1:nrow(grabBeta)){
-		tempbeta <- grabBeta[j, ]
-		formbeta <- c(formbeta, tempbeta)
-	}
-	reppos <- rep(pos[indexstart:indexend ], each = ncol(pre.beta))
-	#reppos.real<-pos[reppos]
-	xmin <- min(reppos) - 100
-	xmax <- max(reppos) + 100
-	status <- rep(pd.complete$casestatus, nrow(grabBeta))
-	reppos.real.shift <- ifelse(status == "Control", reppos + 10, reppos)
-	toplot <- data.frame((formbeta), reppos.real.shift, status)
-	rownames(toplot)<-c()
-	colnames(toplot)<-c("Beta","Position","Status")
-	#toplot$Status<-ifelse(toplot$Status==2,"normal","autism")
-	p2 <- ggplot(data= toplot, aes(x = (Position),y = (Beta),color = factor(Status))) + geom_point(size = 0.75) + scale_colour_manual(values = c("dodgerblue","black")) +
-	theme(legend.direction = "horizontal", legend.position = c(0.75,0.95), legend.title = element_blank(), panel.background = element_blank()) +
-	ylab("Percent Methylation") + xlab("Position") +
-	scale_x_continuous(limits = c(xmin, xmax)) + stat_smooth(method = "loess", se = FALSE) +
-		scale_y_continuous(limits = c(0,1), breaks = seq(0, 1, by = 0.25), labels = c("0","25","50","75","100"))
-		#+stat_summary(fun.y=mean,geom="line",size=1)
-	print(p2)
+plotdmr <- function(ind){ #where ind is row number of desired bump
+  cpgs <-mybumps$indexStart[ind]:mybumps$indexEnd[ind]
+  dat <- data.frame(t(combat.beta[cpgs,]), pd$casestatus)
+  dat <- pivot_longer(dat, cols = colnames(dat)[-ncol(dat)])
+  dat$pos <- rep(pos[cpgs], ncol(combat.beta))
+  dat$pos[dat$pd.casestatus == "RA"] <- dat$pos[dat$pd.casestatus == "RA"] + 10
+  
+  ggplot(dat, aes(x = pos, y = value, color = pd.casestatus)) +
+    geom_smooth(method = "loess", se = F) +
+    geom_point(size = 0.5) +
+    theme_bw() +
+    coord_cartesian(ylim = c(0,1)) +
+    labs(x = "Position", y = "Beta Methylation", color = "Case Status",
+         title = sprintf("DMR #%d", ind)) +
+    scale_color_nejm()
 }
 
+plotdmr(1)
+plotdmr(2)
 ```
 
 # Global DNAm analyses
 
 ```{r global DNAm analyses}
-
 # simple way of getting a global level by taking mean across probes
 # also can restrict by genomic regions by relation to CpG islands
 
@@ -143,16 +122,16 @@ genomic.region <- function(X, region, anno='450k'){
 }
 
 #compute each person's means
-pd.complete$meanDNAm <- colMeans(combat.beta) * 100
+pd$meanDNAm <- colMeans(combat.beta) * 100
 
 #compute means by region
-pd.complete$meanDNAm.sea <- colMeans(genomic.region(combat.beta,'OpenSea')) * 100
-pd.complete$meanDNAm.shore <- colMeans(genomic.region(combat.beta,'Shore')) * 100
-pd.complete$meanDNAm.shelf <- colMeans(genomic.region(combat.beta,'Shelf')) * 100
-pd.complete$meanDNAm.island <- colMeans(genomic.region(combat.beta,'Island')) * 100
+pd$meanDNAm.sea <- colMeans(genomic.region(combat.beta,'OpenSea')) * 100
+pd$meanDNAm.shore <- colMeans(genomic.region(combat.beta,'Shore')) * 100
+pd$meanDNAm.shelf <- colMeans(genomic.region(combat.beta,'Shelf')) * 100
+pd$meanDNAm.island <- colMeans(genomic.region(combat.beta,'Island')) * 100
 
 #now you have a mean across probes for each person, use in regression or other analysis, ex:
-fit.adj <- lm(pd.complete$meanDNAm ~ factor(pd.complete$casestatus) + pd.complete$age + factor(pd.complete$gender) + factor(pd.complete$smoking) + pd.complete$PC1)
+fit.adj <- lm(pd$meanDNAm ~ factor(pd$casestatus) + pd$age + factor(pd$gender) + factor(pd$smoking) + pd$PC1)
 
 summary(fit.adj)
 ```
@@ -160,58 +139,37 @@ summary(fit.adj)
 # DNAm Age analyses
 
 ```{r DNAm age analyses}
-# There are many DNAm age clocks, and implementation will vary depending on sepcific clocks
-# here are examples using two clcoks
-
-
-
-### Horvath skin and blood clock (2018)
-
-# this clock involves predictions on a transformed age variabe
-# the agep() function in the wateRmelon package can take care of this in the background
 library(wateRmelon)
 
+### Horvath Skin and Blood clock (2018)
 # load coefficients from publication (PMID: 30048243)
-horvath <- read.csv(paste0(data_dir, "HorvathSkinBloodCoefs.csv"))
+horvath <- read.csv(here("Data", "HorvathSkinBloodCoefs.csv"))
 horvath.coef <- horvath$Coef
 names(horvath.coef) <- horvath$ID
 
 horvath.age <- agep(combat.beta, coef=horvath.coef, method='horvath')
-pd.complete$horvath.age <- horvath.age
+pd$horvath.age <- horvath.age
 head(horvath.age)
 
-
-
-### Levine clock (2018)
+### Hannum clock (2013)
 
 # load coefficents from publication (PMID: 29676998)
-levine <- read.csv(paste0(data_dir,  "LevineCoefs.csv"), header=T)
+levine <- read.csv(here("Data",  "LevineCoefs.csv"), header=T)
 levine.coef <- levine$Weight
 names(levine.coef) <- levine$CpG
+
+levine.age <- agep(combat.beta, coef = hannum.coef, method = "hannum")
 
 cpg.intersect <- intersect(names(levine.coef)[-1], rownames(combat.beta))
 levine.coef <- levine.coef[c("Intercept", cpg.intersect)]
 
-# this clock does not use a transformed age variable, so we simply need to 
-# multiply coefficients by our methylation values
 
-# first set up DNAm matrix with intercept row
-betas.lev <- combat.beta[cpg.intersect,]
-betas.lev[1:5,1:5]
-
-# add a row for intercept
-Intercept <- rep(1,ncol(betas.lev))
-betas.lev <- rbind(Intercept, betas.lev)
-betas.lev[1:5,1:5]
-
-# multiply DNAm matrix by coefficients
-levine.age <- colSums(betas.lev * levine.coef)
-pd.complete$levine.age <- levine.age
+pd$levine.age <- levine.age
 head(levine.age)
 
 
 ### plot chronological age against DNAm clocks
-ggplot(pd.complete, aes(x=age, y=horvath.age, col=casestatus)) +
+ggplot(pd, aes(x=age, y=horvath.age, col=casestatus)) +
   geom_point() +
   geom_smooth(method='lm', se=F) +
   geom_abline(slope=1) +
@@ -220,27 +178,25 @@ ggplot(pd.complete, aes(x=age, y=horvath.age, col=casestatus)) +
   ylab('Horvath Age') +
   labs(col=("Case Status"))
 
-ggplot(pd.complete, aes(x=age, y=levine.age, col=casestatus)) +
+ggplot(pd, aes(x=age, y=hannum.age, col=casestatus)) +
   geom_point() +
   geom_smooth(method='lm', se=F) +
   geom_abline(slope=1) +
   theme_bw() +
   xlab('Chronological Age') +
-  ylab('Levine Age') +
+  ylab('Hannum Age') +
   labs(col=("Case Status"))
-
 ```
 
 # meQTL analyses
 
 ```{r load genotype data}
 #Load the genotype object
-load(paste0(data_dir, "genotypes.rda"))
-load(paste0(data_dir, "snp.pos.rda"))
+load(here("Data", "genotypes.rda"))
+load(here("Data", "snp.pos.rda"))
 ```
 
 ```{r prepare genetic and methylation data}
-
 #Subset methylation data and genomic positions to only our 
 #chromosome of interest
 B.mychr <- combat.beta[which(chrnames == "chr22"), ]
@@ -292,9 +248,6 @@ with(results.table, plot(Distance, transP, pch = 20, main = NULL,
 ```{r prepare for data download from GEO, eval=FALSE}
 #Use the 'GEOquery' package
 library(GEOquery)
-# set your data directory to where you want to download the files
-data_dir <- "/cloud/project/Data/"
-data_dir
 ```
 
 # Download the data from GEO
@@ -304,7 +257,7 @@ data_dir
 #Download the supplementary files attached to this 
 #GEO ID. Raw .idat files are part of this group of
 #supplementary files. 
-getGEOSuppFiles("GSE42861", makeDirectory = TRUE, baseDir = data_dir)
+getGEOSuppFiles("GSE42861", makeDirectory = TRUE, baseDir = here("Data"))
 
 #General data available for this GEOID
 mystudy <- getGEO(GEO = "GSE42861", destdir = getwd())
