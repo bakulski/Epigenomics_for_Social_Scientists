@@ -41,6 +41,8 @@ There are various quality control steps that need to be executed before we can s
 ```{r load data}
 load(here("Data", "RGset.rda"))
 pd <- data.frame(RGset@colData@listData)
+pd$sex <- pd$gender
+pd$gender <- NULL
 ```
 
 ## Extract methylated and unmethylated signals
@@ -191,7 +193,7 @@ We can check conflicts between the reported and predicted sex of each sample. Pr
 sex <- meth %>% correct_dye_bias() %>% check_sex()
 pd[c("X","Y")] <- bind_rows(sex)
 
-ggplot(pd, aes(X,Y, color = gender)) +
+ggplot(pd, aes(X,Y, color = sex)) +
   geom_point() +
   labs(x = "X chromosome intensity", y = "Y chromosome intensity", color = "Reported Sex") +
   theme_bw() +
@@ -291,7 +293,7 @@ ggplot(beadmean, aes(x = bmean)) +
   labs(x = "Probe mean beadcount") +
   theme_bw()
 
-(table(nbeads < 5) / length(nbeads)) %>% round(digits = 3)
+(table(nbeads < 5) / length(unlist(nbeads))) %>% round(digits = 3)
 
 detp <- detp[!grepl("rs", meth$manifest$probe_id),] #Removing the 65 SNP probes 
 beta <- beta[!grepl("rs", meth$manifest$probe_id),]
@@ -427,7 +429,7 @@ pcplot <- function(pheno){
 ## By sex
 
 ```{r}
-pcplot("gender")
+pcplot("sex")
 ```
 
 ## Batch
@@ -458,7 +460,7 @@ pcplot("grq")
 
 ```{r drop samples missing key covariates}
 # Drop samples with missing data at key covariates
-covars <- c("gender", "casestatus", "smoking", "Batch")
+covars <- c("sex", "casestatus", "smoking", "Batch")
 
 pd <- pd[complete.cases(pd[, covars]), ] # Example of how to remove.
 ```
@@ -466,7 +468,7 @@ pd <- pd[complete.cases(pd[, covars]), ] # Example of how to remove.
 # Use Combat to adjust for batch effects
 
 ```{r combat to adjust for batch effects}
-mod <- model.matrix(~ pd$gender + pd$casestatus + pd$smoking)
+mod <- model.matrix(~ pd$sex + pd$casestatus + pd$smoking)
 
 ### These 2 following lines have already been run as they take too much memory for rstudio cloud
 # combat.beta <- ComBat(dat = beta, batch = pd$Batch, mod = mod)
@@ -503,8 +505,8 @@ pcplotc <- function(pheno){
 
 ## By sex
 
-```{r combat pcs by gender}
-pcplotc("gender")
+```{r combat pcs by sex}
+pcplotc("sex")
 ```
 
 ## Batch

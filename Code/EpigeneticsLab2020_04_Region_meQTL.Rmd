@@ -22,10 +22,11 @@ knitr::opts_chunk$set(echo = TRUE, warning = F)
 ```{r load packages, message = F}
 #Load the matrixEQTL package
 library(MatrixEQTL)
-library(ggplot2)
+library(tidyverse)
 library(minfi)
 library(limma)
 library(here)
+library(ggsci)
 ```
 
 # Read in the data
@@ -36,20 +37,24 @@ load(here("Data", "Premade_Intermediate_Files", "combat-beta.rda"))
 load(here("Data", "pdqc.rda"))
 
 #Make sure this outputs to TRUE
-identical(pd$Basename, colnames(combat.beta))
+all.equal.character(pd$Basename, colnames(combat.beta))
+
+# get position information
+anno <- IlluminaHumanMethylation450kanno.ilmn12.hg19::Locations
+anno <- anno[rownames(combat.beta),]
 ```
 
 # Construct regression model
 
 ```{r construct regression model}
 #Construct the model matrix
-mod <- model.matrix(~ factor(pd$casestatus) + pd$age + factor(pd$gender) + factor(pd$smoking) + pd$PC1)  
+mod <- model.matrix(~ factor(pd$casestatus) + pd$age + factor(pd$sex) + factor(pd$smoking) + pd$PC1)  
 ```
 
 # Region finding
 
 ```{r region finding analysis}
-mybumps <- bumphunter(combat.beta, mod, chr = chrnames, pos = pos,
+mybumps <- bumphunter(combat.beta, mod, chr = anno$chr, pos = anno$pos,
 	pickCutoff = TRUE, pickCutoffQ = 0.975, maxGap = 300, smooth = TRUE,
 	smoothFunction = loessByCluster, B = 10, nullMethod = "bootstrap")
 
@@ -69,7 +74,7 @@ plotdmr <- function(ind){ #where ind is row number of desired bump
   cpgs <-mybumps$indexStart[ind]:mybumps$indexEnd[ind]
   dat <- data.frame(t(combat.beta[cpgs,]), pd$casestatus)
   dat <- pivot_longer(dat, cols = colnames(dat)[-ncol(dat)])
-  dat$pos <- rep(pos[cpgs], ncol(combat.beta))
+  dat$pos <- rep(anno$pos[cpgs], ncol(combat.beta))
   dat$pos[dat$pd.casestatus == "RA"] <- dat$pos[dat$pd.casestatus == "RA"] + 10 #Small displacement for clarity
   
   ggplot(dat, aes(x = pos, y = value, color = pd.casestatus)) +
@@ -131,7 +136,7 @@ pd$meanDNAm.shelf <- colMeans(genomic.region(combat.beta,'Shelf')) * 100
 pd$meanDNAm.island <- colMeans(genomic.region(combat.beta,'Island')) * 100
 
 #now you have a mean across probes for each person, use in regression or other analysis, ex:
-fit.adj <- lm(pd$meanDNAm ~ factor(pd$casestatus) + pd$age + factor(pd$gender) + factor(pd$smoking) + pd$PC1)
+fit.adj <- lm(pd$meanDNAm ~ factor(pd$casestatus) + pd$age + factor(pd$sex) + factor(pd$smoking) + pd$PC1)
 
 summary(fit.adj)
 ```
@@ -159,9 +164,6 @@ hannum.coef <- hannum$Coefficient
 names(hannum.coef) <- hannum$Marker
 
 hannum.age <- agep(combat.beta, coef = hannum.coef, method = "hannum")
-
-cpg.intersect <- intersect(names(hannum.coef)[-1], rownames(combat.beta))
-
 
 pd$hannum.age <- hannum.age
 head(hannum.age)
@@ -254,7 +256,6 @@ library(GEOquery)
 # Download the data from GEO
 
 ```{r download the supplementary files from geo, eval=FALSE}
-
 #Download the supplementary files attached to this 
 #GEO ID. Raw .idat files are part of this group of
 #supplementary files. 
