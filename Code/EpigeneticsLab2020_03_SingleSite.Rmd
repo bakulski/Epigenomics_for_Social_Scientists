@@ -27,7 +27,7 @@ library(MASS)
 library(sva)
 library(Hmisc)
 #library(missMethyl)
-library(ggplot2)
+library(tidyverse)
 library(qqman)
 library(here)
 library(ggsci)
@@ -44,7 +44,6 @@ load(here("Data", "pdqc.rda"))
 # Make sure this outputs to TRUE
 all.equal.character(pd$Basename, colnames(combat.beta))
 ```
-
 
 # Principal components on cell proportions
 
@@ -74,7 +73,6 @@ ggplot(celldf, aes(x = name, y = value, fill = casestatus)) +
   scale_fill_nejm() +
   stat_compare_means(label = c("p.format"), method = "t.test", vjust = 20) +
   stat_compare_means(label = c("p.signif"), method = "t.test", vjust = 18) 
-
 ```
 
 # Single site association testing
@@ -128,6 +126,18 @@ forman$SNP <- ""
 qqman::manhattan(forman, chr = "chr", bp = "pos", p = "P.Value")
 ```
 
+## Volcano Plot
+
+Volcano plots show effect size estimates (positive and negative) on the x axis against log transformed P values on the y axis. Typically the higher the absolute value of the effect size, the more significant the p value is. This results in a distribution of points that resembles a volcano. 
+
+```{r volcano plot}
+ggplot(ss.hits, aes(x = logFC, y = -log10(P.Value))) +
+  geom_point() +
+  theme_bw() +
+  labs(x = "Log Fold Change", y = "-log10 P Value")
+```
+
+
 ## Plot the top 6 hits and examine case vs control beta differences
 
 ```{r plot single site top hits}
@@ -157,10 +167,10 @@ map(rownames(tophits), plotop)
 ```{r calculate gene ontology enrichment}
 # Need to pick a significance cutoff for inclusion. Here is 1x10-5, but may need to be flexible with data.
 #gene.ontology <- missMethyl::gometh(as.character(rownames(ss.hits)[ss.hits$P.Value < 1e-5]), all.cpg = as.character(rownames(ss.hits)), plot.bias = FALSE, prior.prob = TRUE)
-
+#save(gene.ontology, file = here("Data", "Premade_Intermediate_Files", "gene-ontology.rda"))
 # memory requirements of missMethyl package may be too much for RStudio cloud, load the premade gene.ontology object:
 
-load(here("Data", "Premade_Intermediate_Files/gene-ontology.rda"))
+load(here("Data", "Premade_Intermediate_Files","gene-ontology.rda"))
 
 dim(gene.ontology)
 summary(gene.ontology$P.DE)

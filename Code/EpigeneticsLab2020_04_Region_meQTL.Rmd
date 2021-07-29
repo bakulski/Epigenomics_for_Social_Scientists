@@ -70,7 +70,7 @@ plotdmr <- function(ind){ #where ind is row number of desired bump
   dat <- data.frame(t(combat.beta[cpgs,]), pd$casestatus)
   dat <- pivot_longer(dat, cols = colnames(dat)[-ncol(dat)])
   dat$pos <- rep(pos[cpgs], ncol(combat.beta))
-  dat$pos[dat$pd.casestatus == "RA"] <- dat$pos[dat$pd.casestatus == "RA"] + 10
+  dat$pos[dat$pd.casestatus == "RA"] <- dat$pos[dat$pd.casestatus == "RA"] + 10 #Small displacement for clarity
   
   ggplot(dat, aes(x = pos, y = value, color = pd.casestatus)) +
     geom_smooth(method = "loess", se = F) +
@@ -154,18 +154,17 @@ head(horvath.age)
 ### Hannum clock (2013)
 
 # load coefficents from publication (PMID: 29676998)
-levine <- read.csv(here("Data",  "LevineCoefs.csv"), header=T)
-levine.coef <- levine$Weight
-names(levine.coef) <- levine$CpG
+hannum <- read.csv(here("Data",  "hannumcoefs.csv"), header=T)
+hannum.coef <- hannum$Coefficient
+names(hannum.coef) <- hannum$Marker
 
-levine.age <- agep(combat.beta, coef = hannum.coef, method = "hannum")
+hannum.age <- agep(combat.beta, coef = hannum.coef, method = "hannum")
 
-cpg.intersect <- intersect(names(levine.coef)[-1], rownames(combat.beta))
-levine.coef <- levine.coef[c("Intercept", cpg.intersect)]
+cpg.intersect <- intersect(names(hannum.coef)[-1], rownames(combat.beta))
 
 
-pd$levine.age <- levine.age
-head(levine.age)
+pd$hannum.age <- hannum.age
+head(hannum.age)
 
 
 ### plot chronological age against DNAm clocks
@@ -176,7 +175,8 @@ ggplot(pd, aes(x=age, y=horvath.age, col=casestatus)) +
   theme_bw() +
   xlab('Chronological Age') +
   ylab('Horvath Age') +
-  labs(col=("Case Status"))
+  labs(col=("Case Status")) +
+  scale_color_nejm()
 
 ggplot(pd, aes(x=age, y=hannum.age, col=casestatus)) +
   geom_point() +
@@ -185,7 +185,8 @@ ggplot(pd, aes(x=age, y=hannum.age, col=casestatus)) +
   theme_bw() +
   xlab('Chronological Age') +
   ylab('Hannum Age') +
-  labs(col=("Case Status"))
+  labs(col=("Case Status")) +
+  scale_color_nejm()
 ```
 
 # meQTL analyses
