@@ -143,8 +143,8 @@ Here we have no low intensity samples. Also note that the cutpoint of 11 for UQC
 ```{r flag/drop low intesity samples}
 # Drop (or if really small sample: watch out for): Samples with UQC<11 & MQC<11
 # Note the cutoff value (here, 11) would depend on your data and array (EPIC/450k)
-sum(pd$UQC < 11)
-sum(pd$MQC < 11)
+summary(pd$UQC < 11)
+summary(pd$MQC < 11)
 
 rm(Meth, Unmeth) # Clean up our coding environment
 ```
@@ -204,7 +204,7 @@ There are no discrepancies between reported sex and sex chromosome intensity.
 
 ## DNAm relatedness
 
-Several dozen of the probes are placed at to a SNP. This makes the methylation expression mostly dependent on the underlying genotype. With this information we can make a rough inference as to genetic relatedness between different samples. This can be helpful to discover misplates or duplicate samples.
+Several dozen of the probes are placed at to a SNP. This makes the methylation beta levels mostly dependent on the underlying genotype. With this information we can make a rough inference as to genetic relatedness between different samples. This can be helpful to discover misplates or duplicate samples.
 
 ```{r check genetic relatedness}
 snps <- meth$manifest[probe_type == "rs", index]
@@ -220,23 +220,34 @@ The function returns NULL. This means that there are no conflicts in genetic rel
 
 # Derive beta matrix
 
-The equation for a beta matrix is: $Beta = Methyl/(Methyl+Unmethyl)$ where *Methyl* refers to total methylated intensity and *Unmethyl* refers to unmethylated intensity. We see that this *Beta* value is really just the proportion of total intensity that is methylated intensity
+The equation for a beta matrix is: $Beta = Methyl/(Methyl+Unmethyl)$ where *Methyl* refers to total methylated intensity and *Unmethyl* refers to unmethylated intensity. We see that this *Beta* value is really just the proportion of total intensity that is methylated intensity.
+
+Beta methylation values can be thought of as the proportion of cells in the tissue sample that are methylated. A single place on the methylome on a single cell will be either methylated or unmethylated (a 1 or a 0). But there are many cells in the sample so what we get is an average of many 1s and 0s.
 
 ```{r get beta matrix}
 #Dye bias correction seeks to fix the difference in overall intensity between red and greed flourescence
 #dont_normalize means that there will be no inter-sample normalization as it's been found to mute genuine biological signal.
 beta <- meth %>% correct_dye_bias %>% dont_normalize
+dim(beta)
+beta[1:5,1:5]
 ```
 
-## To mask or not to mask, that is a question.
+## Beta density by Case Status
 
-![He'sn't not sure either](E:/GESS/2060001/masquerade.jpg)
+```{r}
+densityPlot(beta, sampGroups = pd$casestatus)
+```
 
-Masking here refers to deleting certain observations by rewriting them as NA. If you have masked values you will not have equal observations for all samples, which may be problematic. This can be fixed by data imputation.
+## Beta density by Batch
 
-```{r masking}
-#Mask all observations with DetectionP > 0.01
-#beta2 <- meth %>% correct_dye_bias %>% mask(0.01) %>% dont_normalize 
+```{r}
+densityPlot(beta, sampGroups = pd$Slide)
+```
+
+## Beta density by Slide
+
+```{r}
+densityPlot(beta, sampGroups = pd$Batch)
 ```
 
 # Sample and probe filtering with detectionP and nBeads
@@ -248,10 +259,13 @@ DetectionP gives us a metric for assessing signal/noise ratios. More specificall
 We get a detectionP value for every observation of all probes in all samples. These are dichotomized as pass/fail with a chosen threshold. We will choose a bit more of a conservative threshold of 0.01.
 
 ```{r calculate detection P}
-detp <- meth$detP
+detp <- meth$detP 
+dimnames(detp) <- dimnames(beta) 
+detp[1:5, 1:5]
+dim(detp)
+
 save(detp, file = here("Data", "detP.rda"))
 ```
-
 
 ##### Plot probe detectionP
 
@@ -288,7 +302,7 @@ nbeads <- nbeads[match(mani[mani$probe_type != "rs", probe_id],rownames(nbeads))
 beadmean <- data.frame(bmean = rowMeans(nbeads, na.rm = T))
 
 ggplot(beadmean, aes(x = bmean)) +
-  geom_histogram(bins = 200, color = "black", fill = "grey") +
+  geom_histogram(bins = 50, color = "black", fill = "grey") +
   coord_cartesian(xlim = c(0, 25)) +
   labs(x = "Probe mean beadcount") +
   theme_bw()
@@ -315,13 +329,13 @@ pthresh <- 0.05
 reliable <- (detp > detpmax) & (nbeads < beadmin) 
 reliable[is.na(reliable)] <- F
 
-dim(beta)
+pmeans <- rowMeans(reliable)
+sum(pmeans > pthresh)
 
-beta <- beta[rowMeans(reliable) < pthresh,] ; reliable <- reliable[rowMeans(reliable) < pthresh,]
+beta <- beta[pmeans < pthresh,] ; reliable <- reliable[pmeans < pthresh,]
 
 dim(beta)
 ```
-
 
 ## Filter samples
 
@@ -330,11 +344,14 @@ After bad probes are filtered out we can continue to filter out samples. We set 
 ```{r drop problem samples}
 sthresh <- 0.1
 
-beta <- beta[,colMeans(reliable, na.rm = T) < sthresh] ; reliable <- reliable[,colMeans(reliable, na.rm = T) < sthresh]
+smeans <- colMeans(reliable)
+sum(smeans > sthresh)
+
+beta <- beta[, smeans < sthresh] 
 
 dim(beta)
 
-rm(reliable)
+rm(reliable,pmeans,smeans,pthresh,sthresh,beadmin,detpmax) #Remove a lot of the clutter that we don't need anymore
 ```
 
 # Cross-reactive probes
@@ -343,8 +360,10 @@ Cross-reactive probes are shown to 'co-hybridize' onto multiple different sites 
 
 ```{r cross-reactive probes}
 load(here("Data", "cross.probes.info.rda")) 
+dim(cross.probes.info)
 
 beta <- beta[!rownames(beta) %in% as.character(cross.probes.info$TargetID),]
+dim(beta)
 
 rm(cross.probes.info)
 ```
@@ -354,16 +373,16 @@ rm(cross.probes.info)
 Gap probes are probes for which the methylation beta clusters into discrete groups-- these typically have their methylation driven by underlying SNPs. So with these probes the underlying genotype explains the beta methylation value. These probes do not necessarily need to be cut but it's good to be aware of them. With a very low sample 
 
 ```{r show gap probes, eval = F}
-gaps <- gaphunter(beta, outCutoff = 0.1, threshold = 0.15) # We set a very high outlier cutoff because we have so few samples. 
+gaps <- gaphunter(beta, outCutoff = 0.15, threshold = 0.1) # We set a very high outlier cutoff because we have so few samples. 
 
 str(gaps)
 
 #Get a probe in the list as an example and plot the beta distribution.
 
-gap1 <- beta[rownames(gaps$sampleresults)[6],]
+gap1 <- beta["cg00458505",]
 gap1 <- data.frame(gap1)
 
-ggplot(gap1, aes(x = rownames(gaps$sampleresults)[6], y = gap1)) +
+ggplot(gap1, aes(x = "cg", y = gap1)) +
   geom_jitter(width = 0.01) +
   labs(title = sprintf("Methylation Beta Values for probe %s", rownames(gaps$sampleresults)[2]), x = " ", y = "beta") +
   coord_cartesian(ylim = c(0, 1)) +
@@ -386,9 +405,10 @@ ggplot(pivot_longer(cells, cols = 1:6), aes(x = value, y = ..density.., fill = n
   labs(x = "Proportion", y = "Density", title = "Sample Proportions by Cell-Types", fill = "Cell-Type")
 
 pd <- data.frame(pd, cells)
+summary(cells$GR)
 ```
 
-# Drop samples with problematic cell proportions
+## Drop samples with problematic cell proportions
 
 ```{r drop samples problem cell proportions}
 # Pick cutoffs for biological ranges for cell type estimates.
@@ -396,6 +416,15 @@ pd <- pd[pd$MO < 0.2, ]
 pd$grq <- cut2(pd$GR, g = 4)
 beta <- beta[,colnames(beta) %in% pd$Basename]
 dim(beta)
+```
+
+# Drop samples with missing data at key covariates
+
+```{r drop samples missing key covariates}
+# Drop samples with missing data at key covariates
+covars <- c("sex", "casestatus", "smoking", "Batch")
+
+pd <- pd[complete.cases(pd[, covars]), ] # Example of how to remove.
 ```
 
 # Principal components on samples from the beta matrix {.tabset .tabset-pills}
@@ -413,9 +442,11 @@ out.var <- betapcs$sdev^2 / sum(betapcs$sdev^2)
 pcvar <- data.frame(pcs = seq(1, length(out.var)), var = out.var)
 
 ggplot(pcvar, aes(x = pcs, y = var)) +
-  geom_bar(stat = "identity", color = "black") +
+  geom_bar(stat = "identity", color = "black") + 
+  geom_label(aes(label = round(var,2), x = pcs, y = var + 0.02), nudge_x = 0.2, fill = "grey") +
+  coord_cartesian(ylim = c(0, 0.4), xlim = c(0,18)) +
   theme_bw() +
-  labs(x = "Principal Component Number", y = "Variance Explained")
+  labs(x = "Principal Component Number", y = "Proportion of variance explained")
 ```
 
 ```{r pcplot}
@@ -455,16 +486,6 @@ pcplot("Slide")
 ```{r }
 pcplot("grq")
 ```
-
-# Drop samples with missing data at key covariates
-
-```{r drop samples missing key covariates}
-# Drop samples with missing data at key covariates
-covars <- c("sex", "casestatus", "smoking", "Batch")
-
-pd <- pd[complete.cases(pd[, covars]), ] # Example of how to remove.
-```
-
 # Use Combat to adjust for batch effects
 
 ```{r combat to adjust for batch effects}
@@ -488,7 +509,9 @@ out.var[1:10]
 pcvar <- data.frame(pcs = seq(1, length(out.var)), var = out.var)
 
 ggplot(pcvar, aes(x = pcs, y = var)) +
-  geom_bar(stat = "identity", color = "black") +
+  geom_bar(stat = "identity", color = "black") + 
+  geom_label(aes(label = round(var,2), x = pcs, y = var + 0.02), nudge_x = 0.2, fill = "grey") +
+  coord_cartesian(ylim = c(0, 0.4), xlim = c(0,18)) +
   theme_bw() +
   labs(x = "Principal Component Number", y = "Variance Explained")
 ```

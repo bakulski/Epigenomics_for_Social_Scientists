@@ -168,7 +168,6 @@ hannum.age <- agep(combat.beta, coef = hannum.coef, method = "hannum")
 pd$hannum.age <- hannum.age
 head(hannum.age)
 
-
 ### plot chronological age against DNAm clocks
 ggplot(pd, aes(x=age, y=horvath.age, col=casestatus)) +
   geom_point() +

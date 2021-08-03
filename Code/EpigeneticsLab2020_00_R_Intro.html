@@ -351,26 +351,23 @@ pre code {
 <h1 class="title toc-ignore">Epigenomics for Social Scientists 2021</h1>
 <h3 class="subtitle">00 Introduction to R and R Markdown</h3>
 <h4 class="author">Kelly Bakulski</h4>
-<h4 class="date">Last compiled on July 22, 2021</h4>
+<h4 class="date">Last compiled on August 03, 2021</h4>
 
 </div>
 
 
-<div id="software-used" class="section level1">
-<h1>Software used</h1>
 <div id="programming-language-r" class="section level2">
 <h2>Programming language: R</h2>
-<p>The programming language used here is R, which is a primarily used for statistical computing. More information can be found here <a href="https://www.r-project.org/" class="uri">https://www.r-project.org/</a>.</p>
-</div>
-<div id="ide-rstudio" class="section level2">
-<h2>IDE: Rstudio</h2>
-<p>IDE (Integrated Development Environment) is fancy language for a piece of software that consolidates different elements of coding. We can see this in the 4 paneled window we are looking at.</p>
+<p>This course will introduce the R statistical programming language for DNA methylation. R statistical software is a freely available, versatile, and powerful program for statistical computing and graphics (<a href="https://www.r-project.org/" class="uri">https://www.r-project.org/</a>). A helpful interface for R is provided by RStudio (<a href="http://www.rstudio.com/" class="uri">http://www.rstudio.com/</a>). For a shared educational environment in this class, we will use the online version of R and RStudio called RStudio Cloud (<a href="https://rstudio.cloud/" class="uri">https://rstudio.cloud/</a>).</p>
 </div>
 <div id="authoring-software-rmarkdown" class="section level2">
 <h2>Authoring Software: RMarkdown</h2>
 <p>This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <a href="http://rmarkdown.rstudio.com" class="uri">http://rmarkdown.rstudio.com</a>.</p>
 <p>When you click the <strong>Knit</strong> button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:</p>
-<pre><code>## Warning: package &#39;knitr&#39; was built under R version 4.0.4</code></pre>
+</div>
+<div id="packages-contain-functions" class="section level2">
+<h2>Packages contain functions</h2>
+<p>Below (where there is grey background) is a code chunk. The text in this section will be talking to R Here we load the <code>knitr</code> package into our current R session to make useful functions available</p>
 </div>
 <div id="common-new-r-users-frustrations" class="section level2">
 <h2>Common new R users frustrations</h2>
@@ -392,14 +389,20 @@ pre code {
 <li>RStudio helps with “tab completion”</li>
 <li>discussed throughout</li>
 </ul></li>
+<li>Often does not include any error/warning messages. Need to train self to often ask:
+<ul>
+<li>What do I expect?</li>
+<li>What do I get?</li>
+<li>Do they match?</li>
+</ul></li>
 </ol>
 </div>
-<div id="explaining-commandsoutput" class="section level2">
-<h2>Explaining commands/output</h2>
-<p>An R command (we’ll also call it code or a code chunk) will be grey and look like this</p>
+<div id="use-functions-to-perform-actions." class="section level2">
+<h2>Use functions to perform actions.</h2>
+<p>Try the <code>print</code> function to show output</p>
 <pre class="r"><code>print(&quot;I&#39;m code&quot;)</code></pre>
 <pre><code>## [1] &quot;I&#39;m code&quot;</code></pre>
-<p>And then directly after it, will be the output of the code.<br />
+<p>Directly after the code chunk will be the output of the code.<br />
 So <code>print(&quot;I&#39;m code&quot;)</code> is the code chunk and [1] “I’m code” is the output.</p>
 </div>
 <div id="r-as-a-calculator" class="section level2">
@@ -431,11 +434,11 @@ So <code>print(&quot;I&#39;m code&quot;)</code> is the code chunk and [1] “I�
 <pre><code>## [1] 3</code></pre>
 <pre class="r"><code># Best practice is to take a ton of notes to help your future self and anyone who comes later to re-run your code</code></pre>
 </div>
-<div id="r-variables" class="section level2">
-<h2>R variables</h2>
+<div id="r-objects" class="section level2">
+<h2>R objects</h2>
 <ul>
-<li>You can create variables from within the R environment and from files on your computer</li>
-<li>R uses “&lt;-”or “=” to assign values to a variable name</li>
+<li>You can create objects (variables) from within the R environment and from files on your computer</li>
+<li>R uses “&lt;-”or “=” to assign values to an object name</li>
 <li>Variable names are case-sensitive, i.e. X and x are different</li>
 </ul>
 <pre class="r"><code>x &lt;- 2 # Same as: x = 2
@@ -478,8 +481,8 @@ x</code></pre>
 <pre class="r"><code>class(x)</code></pre>
 <pre><code>## [1] &quot;numeric&quot;</code></pre>
 </div>
-<div id="the-combine-function-practice" class="section level2">
-<h2>The ‘combine’ function practice</h2>
+<div id="practice-the-combine-function" class="section level2">
+<h2>Practice the ‘combine’ function</h2>
 <p>Try assigning your first and last name as 2 separate character strings into a length-2 vector called <code>name2</code></p>
 <pre class="r"><code>name2 &lt;- c(&quot;Kelly&quot;,&quot;Bakulski&quot;)
 name2</code></pre>
@@ -495,8 +498,8 @@ name2</code></pre>
 <pre class="r"><code>length(y)</code></pre>
 <pre><code>## [1] 1</code></pre>
 </div>
-<div id="the-length-function-practice" class="section level2">
-<h2>The ‘length’ function practice</h2>
+<div id="practice-the-length-function" class="section level2">
+<h2>Practice the ‘length’ function</h2>
 <p>What do you expect for the length of the <code>name</code> variable? What about the <code>name2</code> variable?</p>
 <p>What are the lengths of each?</p>
 <pre class="r"><code>length(name)</code></pre>
@@ -516,17 +519,30 @@ name2</code></pre>
 </div>
 <div id="r-functions-on-vectors-depend-on-class" class="section level2">
 <h2>R functions on vectors depend on class</h2>
-<p>But things like algebra can only be performed on numbers.</p>
+<p>Actions like algebra can only be performed on numbers.</p>
 <pre class="r"><code>name2 + 4</code></pre>
 <pre><code>## Error in name2 + 4: non-numeric argument to binary operator</code></pre>
 </div>
 <div id="r-assign-new-vectors" class="section level2">
 <h2>R assign new vectors</h2>
-<p>And save these modified vectors as a new vector.</p>
+<p>Save these modified vectors as a new vector.</p>
 <pre class="r"><code>y &lt;- x + c(1, 2, 3, 4)
 y </code></pre>
 <pre><code>## [1]  2  6  9 12</code></pre>
-<p>Note that the R object <code>y</code> is no longer “Hello World!” - It has effectively been overwritten by assigning new data to the variable</p>
+<p>Note that the R object <code>y</code> is no longer “Hello World!” - It has been overwritten by assigning new data to the variable. No warning or error!</p>
+</div>
+<div id="create-a-data-frame" class="section level2">
+<h2>Create a data frame</h2>
+<p>Vectors have one dimension. You can combine them into data frames, which have two dimensions (row, column). To call up a single column in the data frame, use <code>$</code> to call the column by name.</p>
+<pre class="r"><code>df&lt;-data.frame(x, y)
+df</code></pre>
+<pre><code>##   x  y
+## 1 1  2
+## 2 4  6
+## 3 6  9
+## 4 8 12</code></pre>
+<pre class="r"><code>df$x</code></pre>
+<pre><code>## [1] 1 4 6 8</code></pre>
 </div>
 <div id="the-structure-function" class="section level2">
 <h2>The structure function</h2>
@@ -535,7 +551,18 @@ y </code></pre>
 <pre><code>##  num [1:4] 1 4 6 8</code></pre>
 <pre class="r"><code>str(y)</code></pre>
 <pre><code>##  num [1:4] 2 6 9 12</code></pre>
+<pre class="r"><code>str(df)</code></pre>
+<pre><code>## &#39;data.frame&#39;:    4 obs. of  2 variables:
+##  $ x: num  1 4 6 8
+##  $ y: num  2 6 9 12</code></pre>
 <p>This tells you that <code>x</code> is a numeric vector and tells you the length.</p>
+</div>
+<div id="use-the-help-viewer" class="section level2">
+<h2>Use the help viewer</h2>
+<p>Any time I use a new function, I navigate to the lower right panel and search for the function. This describes the purpose of the function, the default settings, and the options you can change.</p>
+<pre class="r"><code># Another option is to use the &#39;help&#39; function to search. Look in the lower right panel and the same view will appear.
+help(str)</code></pre>
+<pre><code>## starting httpd help server ... done</code></pre>
 </div>
 <div id="review" class="section level2">
 <h2>Review</h2>
@@ -545,8 +572,8 @@ y </code></pre>
 <li>Assigning values to variables</li>
 <li>Performing algebra on numeric variables</li>
 </ul>
+<p>Click the knit button at the top of this script to run all of the code together and generate a markdown report!</p>
 <p>Introduction to R code adapted from: <a href="http://johnmuschelli.com/intro_to_r/index.html" class="uri">http://johnmuschelli.com/intro_to_r/index.html</a></p>
-</div>
 </div>
 
 
