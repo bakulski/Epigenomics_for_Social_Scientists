@@ -26,7 +26,8 @@ There are many useful packages for DNA methylation pre-processing and analysis. 
 ```{r install_packages, include=FALSE, eval=FALSE}
 # We have these packages already downloaded on the cloud hence eval=FALSE.
 # If you're doing this on a personal computer you can set eval=TRUE to download there.
-
+install.packages("biocManager")
+install.packages("devtools")
 # Install BiocManager. This let's us install Bioconductor packages that we want to use.
 if (!requireNamespace("BiocManager")) install.packages("Bioconductor")
 
